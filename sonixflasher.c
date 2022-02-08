@@ -212,6 +212,8 @@ bool sanity_check_firmware(long fw_size, long offset)
         return false;
     }
 
+    return true;
+
     //TODO check pointer validity
 }
 
@@ -222,6 +224,8 @@ bool sanity_check_jumploader_firmware(long fw_size)
         fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08x max allowed is 0x%08x\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
         return false;
     }
+
+    return true;
 }
 
 int main(int argc, char* argv[])
