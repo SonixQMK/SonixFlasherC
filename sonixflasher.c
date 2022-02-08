@@ -106,6 +106,8 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     uint32_t resp = 0;
     uint32_t status = 0;
 
+    while (fw_size % 64 != 0) fw_size++; // Add padded zereos to fw_size
+
     if(skip_size_check == false)
     {
         if(fw_size + offset > MAX_FIRMWARE)
