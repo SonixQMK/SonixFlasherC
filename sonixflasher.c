@@ -32,7 +32,7 @@ static void print_usage(char *m_name)
         "Usage: \n"
         "  %s <cmd> [options]\n"
         "where <cmd> is one of:\n"
-        "  --vidpid -v       Set VID for device to flash\n"
+        "  --vidpid -v    Set VID for device to flash\n"
         "  --offset -o    Set flashing offset (default: 0)\n"
         "  --file -f      Binary of the firmware to flash (*.bin extension) \n"
         "\n"
