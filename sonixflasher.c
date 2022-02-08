@@ -39,8 +39,10 @@ static void print_usage(char *m_name)
         "  --jumploader -j  Define if we are flashing a jumploader \n"
         "\n"
         "Examples: \n"
-        ". Flash jumploader to device w/ vid/pid 0x0c45/0x7040, with offset 0x200 \n"
-        "   sonixflasher --vidpid 0c45/7040 --offset 0x200 --file fw.bin -j\n"
+        ". Flash jumploader to device w/ vid/pid 0x0c45/0x7040 \n"
+        "   sonixflasher --vidpid 0c45/7040 --file fw.bin -j\n"
+        ". Flash fw to device w/ vid/pid 0x0c45/0x7040 and offset 0x200\n"
+        "   sonixflasher --vidpid 0c45/7040 --file fw.bin -o 0x200\n"
         "\n"
         ""
         "", m_name);
@@ -349,6 +351,15 @@ int main(int argc, char* argv[])
                 case SN268_PID:
                 default:
                     MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
+
+                    if(!flash_jumploader) // Failsafe when flashing a 268 w/o jumploader and offset
+                    {
+                        printf("Warning! Flashing 26X without offset\n");
+                        printf("Fail safing to offset 0x200\n");
+
+                        offset = QMK_OFFSET_DEFAULT;
+                    }
+
                     break;
             }
         }
