@@ -11,6 +11,7 @@
 #define RESPONSE_LEN 64
 #define MAX_FIRMWARE_SN32F260 (30 * 1024) //30k
 #define MAX_FIRMWARE_SN32F240 (64 * 1024) //64k
+#define QMK_OFFSET_DEFAULT 0x200
 
 #define CMD_BASE 0x55AA0000
 #define CMD_INIT (CMD_BASE + 0x100)
@@ -32,13 +33,14 @@ static void print_usage(char *m_name)
         "Usage: \n"
         "  %s <cmd> [options]\n"
         "where <cmd> is one of:\n"
-        "  --vidpid -v    Set VID for device to flash\n"
-        "  --offset -o    Set flashing offset (default: 0)\n"
-        "  --file -f      Binary of the firmware to flash (*.bin extension) \n"
+        "  --vidpid -v      Set VID for device to flash\n"
+        "  --offset -o      Set flashing offset (default: 0)\n"
+        "  --file -f        Binary of the firmware to flash (*.bin extension) \n"
+        "  --jumploader -j  Define if we are flashing a jumploader \n"
         "\n"
         "Examples: \n"
-        ". Flash device w/ vid/pid 0x0c45/0x7040, with offset ox100 \n"
-        "   sonixflasher --vidpid 0c45/7040 --offset 0x100 --file fw.bin \n"
+        ". Flash jumploader to device w/ vid/pid 0x0c45/0x7040, with offset 0x200 \n"
+        "   sonixflasher --vidpid 0c45/7040 --offset 0x200 --file fw.bin -j\n"
         "\n"
         ""
         "", m_name);
@@ -197,6 +199,31 @@ int str2buf(void* buffer, char* delim_str, char* string, int buflen, int bufelem
     return pos;
 }
 
+bool sanity_check_firmware(long fw_size, long offset)
+{
+    if(fw_size + offset > MAX_FIRMWARE)
+    {
+        fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08x max allowed is 0x%08x\n", fw_size, MAX_FIRMWARE - offset);
+        return false;
+    }
+    if(fw_size < 0x100)
+    {
+        fprintf(stderr, "ERROR: Firmware is too small");
+        return false;
+    }
+
+    //TODO check pointer validity
+}
+
+bool sanity_check_jumploader_firmware(long fw_size)
+{
+    if(fw_size > QMK_OFFSET_DEFAULT)
+    {
+        fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08x max allowed is 0x%08x\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
+        return false;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     int opt, opt_index, res;
@@ -207,6 +234,8 @@ int main(int argc, char* argv[])
     long offset = 0;
     char* file_name = NULL;
 
+    bool flash_jumploader = false;
+
     if(argc < 2)
     {   
         print_usage("sonixflasher");
@@ -215,14 +244,15 @@ int main(int argc, char* argv[])
 
     struct option longoptions[] =
     {
-        {"help",   no_argument, 0, 'h'},
-        {"vidpid", required_argument, NULL, 'v'},
-        {"offset", optional_argument, NULL, 'o'},
-        {"file",   required_argument, NULL, 'f'},
+        {"help",       no_argument, 0, 'h'},
+        {"vidpid",     required_argument, NULL, 'v'},
+        {"offset",     optional_argument, NULL, 'o'},
+        {"file",       required_argument, NULL, 'f'},
+        {"jumploader", required_argument, NULL, 'j'},
         {NULL,0,0,0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hv:o:f:", longoptions, &opt_index)) != -1)
+    while ((opt = getopt_long(argc, argv, "hv:o:f:j", longoptions, &opt_index)) != -1)
     {
         switch (opt)
         {
@@ -244,6 +274,9 @@ int main(int argc, char* argv[])
                 break;
             case 'o': // offset 
                 offset = strtol(optarg,NULL, 0);
+                break;
+            case 'j':
+                flash_jumploader = true;
                 break;
             case '?':
             default:
@@ -316,7 +349,9 @@ int main(int argc, char* argv[])
             }
         }
 
-        if(flash(handle, 0x0, fp, file_size, false))
+        if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
+             (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
+             (flash(handle, offset, fp, file_size, false)))
         {
             printf("Device succesfully flashed!\n");
         }
