@@ -17,7 +17,7 @@ endif
 
 # deal with stupid Windows not having 'cc'
 ifeq (default,$(origin CC))
-  CC = gcc -Wall
+  CC = gcc
 endif
 
 
@@ -52,7 +52,7 @@ endif
 
 ############# common
 
-CFLAGS+=-I $(HIDAPI_DIR)/hidapi
+CFLAGS+=-Wall -I $(HIDAPI_DIR)/hidapi
 OBJS += sonixflasher.o
 
 all: sonixflasher
