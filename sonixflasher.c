@@ -367,7 +367,7 @@ int main(int argc, char* argv[])
                 default:
                     MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
-                    if(!flash_jumploader) // Failsafe when flashing a 268 w/o jumploader and offset
+                    if(!flash_jumploader && offset == 0) // Failsafe when flashing a 268 w/o jumploader and offset
                     {
                         printf("Warning! Flashing 26X without offset\n");
                         printf("Fail safing to offset 0x200\n");
