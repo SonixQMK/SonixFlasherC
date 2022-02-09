@@ -17,7 +17,7 @@ endif
 
 # deal with stupid Windows not having 'cc'
 ifeq (default,$(origin CC))
-  CC = gcc
+  CC = gcc -Wall
 endif
 
 

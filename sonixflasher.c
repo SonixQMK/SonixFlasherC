@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
                     if( !sscanf(optarg, "%4hx:%4hx", &vid,&pid) ) { // match "23FE:AB12"
                         // else try parsing standard dec/hex values
                         int wordbuf[4]; // a little extra space
-                        int parsedlen = str2buf(wordbuf, ":/, ", optarg, sizeof(wordbuf), 2);
+                        str2buf(wordbuf, ":/, ", optarg, sizeof(wordbuf), 2);
                         vid = wordbuf[0]; pid = wordbuf[1];
                     }
                 }
@@ -400,5 +400,11 @@ int main(int argc, char* argv[])
     fclose(fp);
     hid_close(handle);
     res = hid_exit();
+
+    if(res < 0)
+    {
+        fprintf(stderr, "ERROR: Could not close the device.\n");
+    }
+
 	exit(0);
 }
