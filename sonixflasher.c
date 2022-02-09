@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include <wchar.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <hidapi.h>
 
@@ -24,6 +24,8 @@
 #define SN248_PID  0x7900
 
 #define EXPECTED_STATUS 0xFAFAFAFA
+
+#define MAX_ATTEMPTS 5
 
 long MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
@@ -105,8 +107,6 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     int read_bytes;
     uint32_t resp = 0;
     uint32_t status = 0;
-
-    while (fw_size % 64 != 0) fw_size++; // Add padded zereos to fw_size
 
     if(skip_size_check == false)
     {
@@ -330,16 +330,29 @@ int main(int argc, char* argv[])
 
     // Try to open the device
     res = hid_init();
+
+    printf("Opening device...\n");
     handle = hid_open(vid, pid, NULL);
 
-    // Check VID/PID
-    if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
-    {
-        printf("Warning: Flashing a non-sonix device, you are now on your own\n");
+    uint8_t attempt_no = 1;
+    while(handle == NULL && attempt_no <= MAX_ATTEMPTS)
+    {   
+        printf("Device failed to open, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
+        sleep(3);
+        handle = hid_open(vid, pid, NULL);
+        attempt_no++;
     }
 
     if(handle)
     {
+        printf("Device opened successfully ...\n");
+
+        // Check VID/PID
+        if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
+        {
+            printf("Warning: Flashing a non-sonix device, you are now on your own\n");
+        }
+
         // Set max fw size depending on VID/PID
         if(vid == SONIX_VID)
         {
@@ -365,6 +378,8 @@ int main(int argc, char* argv[])
                     break;
             }
         }
+
+        while (file_size % 64 != 0) file_size++; // Add padded zereos to file_size
 
         if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
              (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
