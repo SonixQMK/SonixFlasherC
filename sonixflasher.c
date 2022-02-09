@@ -207,7 +207,7 @@ bool sanity_check_firmware(long fw_size, long offset)
 {
     if(fw_size + offset > MAX_FIRMWARE)
     {
-        fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08x max allowed is 0x%08x\n", fw_size, MAX_FIRMWARE - offset);
+        fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08lx max allowed is 0x%08lx\n", fw_size, MAX_FIRMWARE - offset);
         return false;
     }
     if(fw_size < 0x100)
@@ -225,7 +225,7 @@ bool sanity_check_jumploader_firmware(long fw_size)
 {
     if(fw_size > QMK_OFFSET_DEFAULT)
     {
-        fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08x max allowed is 0x%08x\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
+        fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08lx max allowed is 0x%08lx\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
         return false;
     }
 
@@ -312,7 +312,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    printf("Firmware to flash: %s with offset 0x%04x, device: 0x%04x/0x%04x\n", file_name, offset, vid, pid);
+    printf("Firmware to flash: %s with offset 0x%04lx, device: 0x%04x/0x%04x\n", file_name, offset, vid, pid);
 
     FILE* fp = fopen(file_name, "rb");
     
