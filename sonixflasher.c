@@ -112,7 +112,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     {
         if(fw_size + offset > MAX_FIRMWARE)
         {
-            printf("ERROR: Firmware is too large too flash\n");
+            printf("ERROR: Firmware is too large too flash.\n");
             return false;
         }
     }
@@ -129,12 +129,12 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     read_bytes = hid_get_feature(dev, buf);
     if(read_bytes != RESPONSE_LEN + 1)
     {
-        fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d\n", read_bytes, RESPONSE_LEN);
+        fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d.\n", read_bytes, RESPONSE_LEN);
         return false;
     }
     if(!read_response_32(buf, CMD_INIT, &resp)) // Read cmd
     {   
-        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x\n", resp, CMD_INIT);
+        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_INIT);
         return false;
     }
 
@@ -152,12 +152,12 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     read_bytes = hid_get_feature(dev, buf);
     if(!read_response_32(buf, CMD_PREPARE, &resp)) // Read cmd
     {
-        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x\n", resp, CMD_PREPARE);
+        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_PREPARE);
         return false;
     }
     if(!read_response_32(buf + 5, EXPECTED_STATUS, &status))// Read status
     {
-        fprintf(stderr, "ERROR: Failed to initialize: response status is 0x%08x, expected 0x%08x\n", status, EXPECTED_STATUS);
+        fprintf(stderr, "ERROR: Failed to initialize: response status is 0x%08x, expected 0x%08x.\n", status, EXPECTED_STATUS);
         return false;
     }
 
@@ -173,7 +173,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
         clear_buffer(buf, 65);
     }
 
-    printf("Flashing done. Rebooting\n");
+    printf("Flashing done. Rebooting.\n");
 
     // // 4) reboot
 
@@ -207,12 +207,12 @@ bool sanity_check_firmware(long fw_size, long offset)
 {
     if(fw_size + offset > MAX_FIRMWARE)
     {
-        fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08lx max allowed is 0x%08lx\n", fw_size, MAX_FIRMWARE - offset);
+        fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08lx max allowed is 0x%08lx.\n", fw_size, MAX_FIRMWARE - offset);
         return false;
     }
     if(fw_size < 0x100)
     {
-        fprintf(stderr, "ERROR: Firmware is too small");
+        fprintf(stderr, "ERROR: Firmware is too small.");
         return false;
     }
 
@@ -225,7 +225,7 @@ bool sanity_check_jumploader_firmware(long fw_size)
 {
     if(fw_size > QMK_OFFSET_DEFAULT)
     {
-        fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08lx max allowed is 0x%08lx\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
+        fprintf(stderr, "ERROR: Jumper loader is too large: 0x%08lx max allowed is 0x%08lx.\n", fw_size, MAX_FIRMWARE - QMK_OFFSET_DEFAULT);
         return false;
     }
 
@@ -283,7 +283,7 @@ int main(int argc, char* argv[])
             case 'o': // offset 
                 offset = strtol(optarg,NULL, 0);
                 break;
-            case 'j':
+            case 'j': // Jumploader
                 flash_jumploader = true;
                 break;
             case '?':
@@ -312,10 +312,10 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    printf("Firmware to flash: %s with offset 0x%04lx, device: 0x%04x/0x%04x\n", file_name, offset, vid, pid);
+    printf("Firmware to flash: %s with offset 0x%04lx, device: 0x%04x/0x%04x.\n", file_name, offset, vid, pid);
 
     FILE* fp = fopen(file_name, "rb");
-    
+
     if(fp == NULL)
     {
         fprintf(stderr, "ERROR: Could not open file (Does the file exist?).\n");
@@ -328,6 +328,30 @@ int main(int argc, char* argv[])
     long file_size = ftell(fp);
     fseek(fp, 0 , SEEK_SET);
 
+    // if jumploader is not 0x200 in length, add padded zeroes to file
+    if(flash_jumploader && file_size < QMK_OFFSET_DEFAULT)
+    {   
+        printf("Warning: jumploader binary doesnt have a size of: 0x%04x bytes.\n", QMK_OFFSET_DEFAULT);
+        printf("Truncating jumploader binary to: 0x%04x.\n", QMK_OFFSET_DEFAULT);
+
+        // Close device before truncating it
+        fclose(fp);
+        if (truncate(file_name, QMK_OFFSET_DEFAULT) != 0)
+        {
+            fprintf(stderr, "ERROR: Could not truncate file.\n");
+            exit(1);
+        }
+        
+        // Try open the file again.
+        fp = fopen(file_name, "rb");
+        if(fp == NULL)
+        {
+            fprintf(stderr, "ERROR: Could not open file.\n");
+            fclose(fp);
+            exit(1);
+        }
+    }
+
     // Try to open the device
     res = hid_init();
 
@@ -335,7 +359,7 @@ int main(int argc, char* argv[])
     handle = hid_open(vid, pid, NULL);
 
     uint8_t attempt_no = 1;
-    while(handle == NULL && attempt_no <= MAX_ATTEMPTS)
+    while(handle == NULL && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to connect to device.
     {   
         printf("Device failed to open, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
         sleep(3);
@@ -345,12 +369,12 @@ int main(int argc, char* argv[])
 
     if(handle)
     {
-        printf("Device opened successfully ...\n");
+        printf("Device opened successfully...\n");
 
         // Check VID/PID
         if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
         {
-            printf("Warning: Flashing a non-sonix device, you are now on your own\n");
+            printf("Warning: Flashing a non-sonix device, you are now on your own.\n");
         }
 
         // Set max fw size depending on VID/PID
@@ -369,8 +393,8 @@ int main(int argc, char* argv[])
 
                     if(!flash_jumploader && offset == 0) // Failsafe when flashing a 268 w/o jumploader and offset
                     {
-                        printf("Warning! Flashing 26X without offset\n");
-                        printf("Fail safing to offset 0x200\n");
+                        printf("Warning: Flashing 26X without offset.\n");
+                        printf("Fail safing to offset 0x%04x\n", QMK_OFFSET_DEFAULT);
 
                         offset = QMK_OFFSET_DEFAULT;
                     }
@@ -379,7 +403,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        while (file_size % 64 != 0) file_size++; // Add padded zereos to file_size
+        while (file_size % 64 != 0) file_size++; // Add padded zereos (if any) to file_size
 
         if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
              (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
