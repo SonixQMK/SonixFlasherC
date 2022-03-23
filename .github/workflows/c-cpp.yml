@@ -24,7 +24,7 @@ jobs:
     
     - uses: actions/upload-artifact@v3.0.0
       with:
-        name: Upload Artifact
+        name: SonixFlasherC Linux
         path: sonixflasherc-linux.tar.xz
   
   build-mac:
@@ -45,7 +45,7 @@ jobs:
    
     - uses: actions/upload-artifact@v3.0.0
       with:
-        name: Upload Artifact
+        name: SonixFlasherC Mac
         path: sonixflasherc-mac.zip
         
   build-windows:
@@ -75,6 +75,6 @@ jobs:
    
     - uses: actions/upload-artifact@v3.0.0
       with:
-        name: Upload Artifact
+        name: SonixFlasherC Windows
         path: sonixflasherc-win.zip
   
