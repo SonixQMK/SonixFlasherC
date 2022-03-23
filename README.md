@@ -1,2 +1,2 @@
 # SonixFlasherC
-Dead Simple flasher 
+Dead Simple flasher.
