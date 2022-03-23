@@ -13,12 +13,15 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+  
     - name: Install libudev
       run: sudo apt-get install -y libudev-dev
+    
     - name: make 
       run: |
         make sonixflasher
         tar -cvf sonixflasherc-linux.tar.xz sonixflasher
+    
     - uses: actions/upload-artifact@v3.0.0
       with:
         name: Upload Artifact
@@ -31,12 +34,15 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+   
     - name: Setup Arch
       run: export ARCHFLAGS="-arch x86_64"
+   
     - name: make 
       run: |
         make sonixflasher
         zip sonixflasherc-mac.zip sonixflasher
+   
     - uses: actions/upload-artifact@v3.0.0
       with:
         name: Upload Artifact
@@ -52,17 +58,21 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+    
     - uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
         update: true
         install: git mingw-w64-x86_64-cc
+    
     - name: make 
       run: |
         make sonixflasher
-    - name: Zip
+
     - shell: powershell
+    - name: Zip
       run: Compress-Archive -Path sonixflasher.exe -DestinationPath sonixflasherc-win.zip
+   
     - uses: actions/upload-artifact@v3.0.0
       with:
         name: Upload Artifact
