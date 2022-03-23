@@ -21,3 +21,19 @@ jobs:
       with:
         name: Upload Artifact
         path: sonixflasherc-linux.tar.xz
+  
+  build-mac:
+     runs-on: macos-10.15
+
+     steps:
+    - uses: actions/checkout@v2
+      with:
+      submodules: recursive
+    - name: make 
+      run: |
+        make sonixflasher
+        zip sonixflasherc-mac.zip sonixflasher
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Upload Artifact
+        path: sonixflasherc-mac.zip
