@@ -375,6 +375,9 @@ int main(int argc, char* argv[])
         if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
         {
             printf("Warning: Flashing a non-sonix device, you are now on your own.\n");
+
+            // Set max firmware to 64k, useful when flashing a Sonix Board that isnt in BL mode (Redragons, Keychrons)
+            MAX_FIRMWARE = MAX_FIRMWARE_SN32F240; // Maybe add a param to override this (?)
         }
 
         // Set max fw size depending on VID/PID
@@ -403,7 +406,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        while (file_size % 64 != 0) file_size++; // Add padded zereos (if any) to file_size
+        while (file_size % 64 != 0) file_size++; // Add padded zereos (if any) to file_size, since we are using a fixed 64 + 1 buffer, we need to take in consideration when the file doesnt fill the buffer.
 
         if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
              (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
