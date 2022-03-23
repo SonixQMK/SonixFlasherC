@@ -1,0 +1,80 @@
+name: Make CI
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+  
+    - name: Install libudev
+      run: sudo apt-get install -y libudev-dev
+    
+    - name: Compile SonixFlasherC
+      run: |
+        make sonixflasher
+        tar -cvf sonixflasherc-linux.tar.xz sonixflasher
+    
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC Linux
+        path: sonixflasherc-linux.tar.xz
+  
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+   
+    - name: Setup Arch
+      run: export ARCHFLAGS="-arch x86_64"
+   
+    - name: Compile SonixFlasherC 
+      run: |
+        make sonixflasher
+        zip sonixflasherc-mac.zip sonixflasher
+   
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC Mac
+        path: sonixflasherc-mac.zip
+        
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: git mingw-w64-x86_64-cc make
+    
+    - name: Compile SonixFlasherC 
+      run: |
+        make sonixflasher
+
+    - name: Zip executable
+      run: Compress-Archive -Path sonixflasher.exe -DestinationPath sonixflasherc-win.zip
+      shell: powershell
+   
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC Windows
+        path: sonixflasherc-win.zip
+  
