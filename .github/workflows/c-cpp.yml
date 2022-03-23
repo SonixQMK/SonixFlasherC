@@ -1,0 +1,67 @@
+name: Make CI
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: make 
+      run: |
+        make sonixflasher
+        tar -cvf sonixflasherc-linux.tar.xz sonixflasher
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Upload Artifact
+        path: sonixflasherc-linux.tar.xz
+  
+  build-mac:
+    runs-on: macos-10.15
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: make 
+      run: |
+        make sonixflasher
+        zip sonixflasherc-mac.zip sonixflasher
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Upload Artifact
+        path: sonixflasherc-mac.zip
+        
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: git mingw-w64-x86_64-cc
+    - name: Install zip
+      run: |
+        yes | pacman -S zip
+    - name: make 
+      run: |
+        make sonixflasher
+        zip sonixflasherc-win.zip sonixflasher.exe
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Upload Artifact
+        path: sonixflasherc-win.zip
+  
