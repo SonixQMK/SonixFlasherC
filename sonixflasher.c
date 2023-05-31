@@ -291,6 +291,11 @@ int main(int argc, char* argv[])
                         vid = wordbuf[0]; pid = wordbuf[1];
                     }
                 }
+                // make sure we have the correct vidpid
+                if(vid == 0 || pid == 0) {
+                    fprintf(stderr, "ERROR: invalid vidpid -'%s'.\n",optarg);
+                    exit(1);
+                }
                 break;
             case 'f': // file name
                 file_name = optarg;
@@ -299,7 +304,7 @@ int main(int argc, char* argv[])
                 char *endptr;
                 offset = strtol(optarg, &endptr, 0);
                 if (errno == ERANGE || *endptr != '\0') {
-                    fprintf(stderr, "ERROR: invalid offset value '-%c'.\n", optopt);
+                    fprintf(stderr, "ERROR: invalid offset value -'%s'.\n", optarg);
                     exit(1);
                 }
                 break;
