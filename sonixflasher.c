@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <hidapi.h>
 
@@ -155,7 +156,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     clear_buffer(buf, 65);
     write_buffer_32(buf, CMD_PREPARE);
     write_buffer_32(buf+5, (uint32_t)offset);
-    write_buffer_32(buf+9, (uint32_t)(fw_size/64)); 
+    write_buffer_32(buf+9, (uint32_t)(fw_size/64));
     hid_set_feature(dev, buf, 65);
 
     clear_buffer(buf, 65);
@@ -295,7 +296,12 @@ int main(int argc, char* argv[])
                 file_name = optarg;
                 break;
             case 'o': // offset 
-                offset = strtol(optarg,NULL, 0);
+                char *endptr;
+                offset = strtol(optarg, &endptr, 0);
+                if (errno == ERANGE || *endptr != '\0') {
+                    fprintf(stderr, "ERROR: invalid offset value '-%c'.\n", optopt);
+                    exit(1);
+                }
                 break;
             case 'j': // Jumploader
                 flash_jumploader = true;
