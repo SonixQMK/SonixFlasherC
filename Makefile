@@ -1,6 +1,3 @@
-# path for HID
-HIDAPI_DIR ?= ./hidapi
-
 # try to do some autodetecting
 UNAME := $(shell uname -s)
 ARCH := $(shell uname -m)
@@ -24,9 +21,8 @@ endif
 #############  Mac
 ifeq "$(OS)" "macos"
 
-CFLAGS+=-arch x86_64 -arch arm64
-LIBS=-framework IOKit -framework CoreFoundation -framework AppKit
-OBJS=$(HIDAPI_DIR)/mac/hid.o
+CFLAGS+=`pkg-config hidapi --cflags`
+LIBS=-lhidapi -framework IOKit -framework CoreFoundation -framework AppKit
 EXE=
 
 endif
@@ -34,8 +30,8 @@ endif
 ############# Windows
 ifeq "$(OS)" "windows"
 
-LIBS += -lsetupapi -Wl,--enable-auto-import -static-libgcc -static-libstdc++
-OBJS = $(HIDAPI_DIR)/windows/hid.o
+CFLAGS+=`pkg-config hidapi --cflags`
+LIBS+= -lhidapi -lsetupapi -Wl,--enable-auto-import -static-libgcc -static-libstdc++
 EXE=.exe
 
 endif
@@ -44,7 +40,8 @@ endif
 ifeq "$(OS)" "linux"
 
 LIBS = `pkg-config libudev --libs`
-OBJS = $(HIDAPI_DIR)/linux/hid.o
+CFLAGS+=`pkg-config hidapi-libusb --cflags`
+LIBS+=`pkg-config hidapi-libusb --libs`
 EXE=
 
 endif
@@ -52,7 +49,7 @@ endif
 
 ############# common
 
-CFLAGS+=-Wall -I $(HIDAPI_DIR)/hidapi
+CFLAGS+=-Wall
 OBJS += sonixflasher.o
 
 all: sonixflasher
@@ -70,4 +67,4 @@ clean:
 
 package: sonixflasher$(EXE)
 	@echo "Packaging up sonixflasher for '$(OS)-$(ARCH)'"
-	zip sonixflasher-$(OS)-$(ARCH).zip sonixflasher$(EXE)
+	7z a sonixflasher-$(OS)-$(ARCH).zip sonixflasher$(EXE)

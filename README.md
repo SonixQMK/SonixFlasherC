@@ -16,11 +16,12 @@ Features:
 
 ### Dependencies
 
-Clone this repository recursively:
+Clone this repository:
 ```
-git clone --recursive https://github.com/SonixQMK/SonixFlasherC
+git clone https://github.com/SonixQMK/SonixFlasherC
 ```
 
+[hidapi](https://github.com/libusb/hidapi) is a prequisite.
 If using windows, please install MinGW
 
 ### Compiling
