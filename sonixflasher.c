@@ -252,6 +252,7 @@ int main(int argc, char* argv[])
     uint16_t pid = 0;
     long offset = 0;
     char* file_name = NULL;
+    char* endptr = NULL;
 
     bool flash_jumploader = false;
 
@@ -301,7 +302,6 @@ int main(int argc, char* argv[])
                 file_name = optarg;
                 break;
             case 'o': // offset 
-                char *endptr;
                 offset = strtol(optarg, &endptr, 0);
                 if (errno == ERANGE || *endptr != '\0') {
                     fprintf(stderr, "ERROR: invalid offset value -'%s'.\n", optarg);
