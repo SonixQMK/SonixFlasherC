@@ -29,7 +29,7 @@
 #define MAX_ATTEMPTS 5
 
 #define PROJECT_NAME "sonixflasher"
-#define PROJECT_VER "1.0.0"
+#define PROJECT_VER "1.1.0"
 
 long MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
