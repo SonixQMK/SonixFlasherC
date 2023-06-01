@@ -1,0 +1,113 @@
+name: Make CI
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types:
+      - published
+  pull_request:
+  workflow_dispatch:
+    
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+  
+    - name: Install libudev and libhidapi
+      run: sudo apt-get install -y libudev-dev libhidapi-dev
+    
+    - name: Compile SonixFlasherC
+      run: |
+        make clean package
+    
+    - name: Find artifact files
+      id: find-files
+      run: |
+        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
+        files=$(cat artifact_files.txt)
+        echo "FILES=$files" >> $GITHUB_ENV
+
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC-Linux
+        path: ${{ env.FILES }}
+  
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install hidapi
+      run: |
+        brew update
+        brew install hidapi
+
+    - name: Compile SonixFlasherC 
+      run: |
+        make clean package
+
+    - name: Find artifact files
+      id: find-files
+      run: |
+        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
+        files=$(cat artifact_files.txt)
+        echo "FILES=$files" >> $GITHUB_ENV
+
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC-macOS
+        path: ${{ env.FILES }}
+        
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: git p7zip dos2unix mingw-w64-x86_64-pkg-config mingw-w64-x86_64-cc mingw-w64-x86_64-hidapi make
+    
+    - name: Compile SonixFlasherC 
+      run: |
+        make clean sonixflasher package
+   
+    - name: Find artifact files
+      id: find-files
+      run: |
+        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
+        files=$(cat artifact_files.txt)
+        echo "FILES=$files" >> $GITHUB_ENV
+
+    - uses: actions/upload-artifact@v3.0.0
+      with:
+        name: SonixFlasherC-Windows
+        path: ${{ env.FILES }}
+
+  publish_release:
+    name: Publish (Release)
+    runs-on: ubuntu-latest
+
+    needs: [build-linux, build-mac, build-windows]
+
+    if: github.event.release.tag_name
+
+    steps:
+    - uses: actions/download-artifact@v3
+
+    - uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ github.event.release.name }}
+        files: |
+          ${{ github.workspace }}/*/*
+        fail_on_unmatched_files: true

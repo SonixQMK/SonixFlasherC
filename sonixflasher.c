@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <hidapi.h>
 
@@ -27,6 +28,9 @@
 
 #define MAX_ATTEMPTS 5
 
+#define PROJECT_NAME "sonixflasher"
+#define PROJECT_VER "1.0.0"
+
 long MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
 static void print_usage(char *m_name)
@@ -39,6 +43,7 @@ static void print_usage(char *m_name)
         "  --offset -o      Set flashing offset (default: 0)\n"
         "  --file -f        Binary of the firmware to flash (*.bin extension) \n"
         "  --jumploader -j  Define if we are flashing a jumploader \n"
+        "  --version -V      Print version information\n"
         "\n"
         "Examples: \n"
         ". Flash jumploader to device w/ vid/pid 0x0c45/0x7040 \n"
@@ -48,6 +53,12 @@ static void print_usage(char *m_name)
         "\n"
         ""
         "", m_name);
+}
+
+//Display program version
+static void display_version(char *m_name)
+{
+    fprintf(stderr,"%s " PROJECT_VER "\n",m_name);
 }
 
 void clear_buffer(unsigned char *data, size_t lenght)
@@ -145,7 +156,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     clear_buffer(buf, 65);
     write_buffer_32(buf, CMD_PREPARE);
     write_buffer_32(buf+5, (uint32_t)offset);
-    write_buffer_32(buf+9, (uint32_t)(fw_size/64)); 
+    write_buffer_32(buf+9, (uint32_t)(fw_size/64));
     hid_set_feature(dev, buf, 65);
 
     clear_buffer(buf, 65);
@@ -241,18 +252,20 @@ int main(int argc, char* argv[])
     uint16_t pid = 0;
     long offset = 0;
     char* file_name = NULL;
+    char* endptr = NULL;
 
     bool flash_jumploader = false;
 
     if(argc < 2)
     {   
-        print_usage("sonixflasher");
+        print_usage(PROJECT_NAME);
         exit(1);
     }
 
     struct option longoptions[] =
     {
         {"help",       no_argument, 0, 'h'},
+        {"version",    no_argument, 0, 'V'},
         {"vidpid",     required_argument, NULL, 'v'},
         {"offset",     optional_argument, NULL, 'o'},
         {"file",       required_argument, NULL, 'f'},
@@ -260,12 +273,15 @@ int main(int argc, char* argv[])
         {NULL,0,0,0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hv:o:f:j", longoptions, &opt_index)) != -1)
+    while ((opt = getopt_long(argc, argv, "hVv:o:f:j", longoptions, &opt_index)) != -1)
     {
         switch (opt)
         {
-            case 0: // Show help
-                print_usage("sonixflasher");
+            case 'h': // Show help
+                print_usage(PROJECT_NAME);
+                break;
+            case 'V': // version
+                display_version(PROJECT_NAME);
                 break;
             case 'v': // Set vid/pid
                 if( sscanf(optarg, "%4hx/%4hx", &vid,&pid) !=2 ) {  // match "23FE/AB12"
@@ -276,12 +292,21 @@ int main(int argc, char* argv[])
                         vid = wordbuf[0]; pid = wordbuf[1];
                     }
                 }
+                // make sure we have the correct vidpid
+                if(vid == 0 || pid == 0) {
+                    fprintf(stderr, "ERROR: invalid vidpid -'%s'.\n",optarg);
+                    exit(1);
+                }
                 break;
             case 'f': // file name
                 file_name = optarg;
                 break;
             case 'o': // offset 
-                offset = strtol(optarg,NULL, 0);
+                offset = strtol(optarg, &endptr, 0);
+                if (errno == ERANGE || *endptr != '\0') {
+                    fprintf(stderr, "ERROR: invalid offset value -'%s'.\n", optarg);
+                    exit(1);
+                }
                 break;
             case 'j': // Jumploader
                 flash_jumploader = true;
@@ -292,6 +317,7 @@ int main(int argc, char* argv[])
                 {
                     case 'f':
                     case 'v':
+                    case 'o':
                         fprintf(stderr, "ERROR: option '-%c' requires a parameter.\n", optopt);
                         break;
                     case 0:
@@ -303,7 +329,8 @@ int main(int argc, char* argv[])
                 }
                 exit(1);
         }
-
+        // exit clean after printing
+        if(opt == 'h' || opt == 'V') exit(1);
     }
 
     if (file_name == NULL)
