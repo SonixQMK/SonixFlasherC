@@ -4,7 +4,7 @@ A CLI-based Flasher for Sonix 24x/26x MCUs.
 
 ## Description
 
-This flasher is aimed for advanced users that don't need a GUI. If you require a GUI please use: [Sonix-Flaser](https://github.com/SonixQMK/sonix-flasher).
+This flasher is aimed for advanced users that don't need a GUI. If you require a GUI please use: [Sonix-Flasher](https://github.com/SonixQMK/sonix-flasher).
 
 Features:
 
