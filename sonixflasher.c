@@ -475,10 +475,12 @@ int main(int argc, char* argv[])
             if(vid == EVISION_VID && !reboot_requested) printf("Warning: eVision VID detected! You probably need to use the reboot option.\n");
             if(vid == APPLE_VID && !reboot_requested) printf("Warning: Apple VID detected! You probably need to use the reboot option.\n");
             printf("Warning: Flashing a non-sonix bootloader device, you are now on your own.\n");
+            sleep(3);
 
             // Set max firmware to 64k, useful when flashing a Sonix Board that isnt in BL mode (Redragons, Keychrons)
             MAX_FIRMWARE = MAX_FIRMWARE_SN32F240; // Maybe add a param to override this (?)
             printf("Warning: We assume a ROM size of 64k.\n");
+            sleep(3);
         }
 
         // Set max fw size depending on VID/PID
