@@ -74,7 +74,7 @@ jobs:
       with:
         msystem: MINGW64
         update: true
-        install: git p7zip dos2unix mingw-w64-x86_64-pkg-config mingw-w64-x86_64-cc mingw-w64-x86_64-hidapi make
+        install: make p7zip mingw-w64-x86_64-cc mingw-w64-x86_64-pkg-config mingw-w64-x86_64-hidapi
     
     - name: Compile SonixFlasherC 
       run: |
