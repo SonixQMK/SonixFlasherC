@@ -24,6 +24,9 @@
 #define SN248B_PID 0x7040
 #define SN248_PID  0x7900
 
+#define EVISION_VID 0x320F
+#define APPLE_VID 0x05ac
+
 #define EXPECTED_STATUS 0xFAFAFAFA
 
 #define MAX_ATTEMPTS 5
@@ -462,7 +465,9 @@ int main(int argc, char* argv[])
         // Check VID/PID
         if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
         {
-            printf("Warning: Flashing a non-sonix device, you are now on your own.\n");
+            if(vid == EVISION_VID && !reboot_requested) printf("Warning: eVision VID detected! You probably need to use the reboot option.\n");
+            if(vid == APPLE_VID && !reboot_requested) printf("Warning: Apple VID detected! You probably need to use the reboot option.\n");
+            printf("Warning: Flashing a non-sonix bootloader device, you are now on your own.\n");
 
             // Set max firmware to 64k, useful when flashing a Sonix Board that isnt in BL mode (Redragons, Keychrons)
             MAX_FIRMWARE = MAX_FIRMWARE_SN32F240; // Maybe add a param to override this (?)
