@@ -113,15 +113,16 @@ int hid_get_feature(hid_device *dev, unsigned char *data)
     return hid_get_feature_report(dev, data, RESPONSE_LEN + 1);
 }
 
-void send_magic_command(hid_device *dev, const uint32_t *command)
+bool send_magic_command(hid_device *dev, const uint32_t *command)
 {
     unsigned char buf[65];
 
     clear_buffer(buf, sizeof(buf));
     write_buffer_32(buf,command[0]);
     write_buffer_32(buf + sizeof(uint32_t),command[1]);
-    hid_set_feature(dev,buf, sizeof(buf));
+    if(!hid_set_feature(dev,buf, sizeof(buf))) return false;
     clear_buffer(buf, sizeof(buf));
+    return true;
 }
 
 bool reboot_to_bootloader(hid_device *dev, char *oem_option)
@@ -136,13 +137,11 @@ bool reboot_to_bootloader(hid_device *dev, char *oem_option)
     }
     if(strcmp(oem_option, "evision") == 0)
     {
-        send_magic_command(dev,evision_reboot);
-        return true;
+        return send_magic_command(dev,evision_reboot);
     }
     else if(strcmp(oem_option, "hfd") == 0)
     {
-        send_magic_command(dev,hfd_reboot);
-        return true;
+        return send_magic_command(dev,hfd_reboot);
     }
     printf("ERROR: unsupported reboot option selected.\n");
     return false;
@@ -183,7 +182,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     clear_buffer(buf, 65);
     write_buffer_32(buf, CMD_INIT);
-    hid_set_feature(dev, buf, 65);
+    if(!hid_set_feature(dev, buf, 65)) return false;
 
     clear_buffer(buf, 65);
     read_bytes = hid_get_feature(dev, buf);
@@ -211,7 +210,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     write_buffer_32(buf, CMD_PREPARE);
     write_buffer_32(buf+5, (uint32_t)offset);
     write_buffer_32(buf+9, (uint32_t)(fw_size/64));
-    hid_set_feature(dev, buf, 65);
+    if(!hid_set_feature(dev, buf, 65)) return false;
 
     clear_buffer(buf, 65);
     read_bytes = hid_get_feature(dev, buf);
@@ -234,7 +233,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     clear_buffer(buf, 65);
     while ((bytes_read = fread(buf+1, 1, 64, firmware)) > 0)
     {
-        hid_set_feature(dev, buf, 65);
+        if(!hid_set_feature(dev, buf, 65)) return false;
         clear_buffer(buf, 65);
     }
 
@@ -244,7 +243,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     clear_buffer(buf, 65);
     write_buffer_32(buf, CMD_REBOOT);
-    hid_set_feature(dev, buf, 65);
+    if(!hid_set_feature(dev, buf, 65)) return false;
 
     return true;
 
