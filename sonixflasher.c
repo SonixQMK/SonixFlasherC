@@ -47,7 +47,7 @@ static void print_usage(char *m_name)
         "  --file -f        Binary of the firmware to flash (*.bin extension) \n"
         "  --jumploader -j  Define if we are flashing a jumploader \n"
         "  --reboot -r      Request bootloader reboot in OEM firmware (options: evision, hfd) \n"
-        "  --version -V      Print version information\n"
+        "  --version -V     Print version information\n"
         "\n"
         "Examples: \n"
         ". Flash jumploader to device w/ vid/pid 0x0c45/0x7040 \n"
@@ -185,7 +185,14 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     clear_buffer(buf, 65);
     write_buffer_32(buf, CMD_INIT);
-    if(!hid_set_feature(dev, buf, 65)) return false;
+    uint8_t attempt_no = 1;
+    while(!hid_set_feature(dev, buf, 65) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
+    {
+        printf("Flash failed to init, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
+        sleep(3);
+        attempt_no++;
+    }
+    if(attempt_no > MAX_ATTEMPTS) return false;
 
     clear_buffer(buf, 65);
     read_bytes = hid_get_feature(dev, buf);
