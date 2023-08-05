@@ -43,6 +43,7 @@ static void print_usage(char *m_name)
         "  --offset -o      Set flashing offset (default: 0)\n"
         "  --file -f        Binary of the firmware to flash (*.bin extension) \n"
         "  --jumploader -j  Define if we are flashing a jumploader \n"
+        "  --reboot -r      Request bootloader reboot in OEM firmware (options: evision, hfd) \n"
         "  --version -V      Print version information\n"
         "\n"
         "Examples: \n"
@@ -112,7 +113,42 @@ int hid_get_feature(hid_device *dev, unsigned char *data)
     return hid_get_feature_report(dev, data, RESPONSE_LEN + 1);
 }
 
-bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip_size_check)
+void send_magic_command(hid_device *dev, const uint32_t *command)
+{
+    unsigned char buf[65];
+
+    clear_buffer(buf, sizeof(buf));
+    write_buffer_32(buf,command[0]);
+    write_buffer_32(buf + sizeof(uint32_t),command[1]);
+    hid_set_feature(dev,buf, sizeof(buf));
+    clear_buffer(buf, sizeof(buf));
+}
+
+bool reboot_to_bootloader(hid_device *dev, char *oem_option)
+{
+    uint32_t evision_reboot[2] = { 0x5AA555AA, 0xCC3300FF };
+    uint32_t hfd_reboot[2] = { 0x5A8942AA, 0xCC6271FF };
+
+    if (oem_option == NULL)
+    {
+        printf("ERROR: reboot option cannot be null.\n");
+        return false;
+    }
+    if(strcmp(oem_option, "evision") == 0)
+    {
+        send_magic_command(dev,evision_reboot);
+        return true;
+    }
+    else if(strcmp(oem_option, "hfd") == 0)
+    {
+        send_magic_command(dev,hfd_reboot);
+        return true;
+    }
+    printf("ERROR: unsupported reboot option selected.\n");
+    return false;
+}
+
+bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip_size_check, bool oem_reboot, char *oem_option)
 {
     unsigned char buf[65];
     int read_bytes;
@@ -124,6 +160,19 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
         if(fw_size + offset > MAX_FIRMWARE)
         {
             printf("ERROR: Firmware is too large too flash.\n");
+            return false;
+        }
+    }
+
+    // 0) Request bootloader reboot
+
+    if(oem_reboot)
+    {
+        printf("Requesting bootloader reboot...\n");
+        if(reboot_to_bootloader(dev, oem_option)) printf("Bootloader reboot succesfull.\n");
+        else
+        {
+            printf("ERROR: Bootloader reboot failed.\n");
             return false;
         }
     }
@@ -143,12 +192,17 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
         fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d.\n", read_bytes, RESPONSE_LEN);
         return false;
     }
-    if(!read_response_32(buf, CMD_INIT, &resp)) // Read cmd
-    {   
-        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_INIT);
+    bool reboot_fail = !read_response_32(buf, 0, &resp);
+    bool init_fail = !read_response_32(buf, CMD_INIT, &resp);
+    if(init_fail)
+    {
+        if(oem_reboot && reboot_fail)
+        {
+            fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, 0);
+        }
+        else fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_INIT);
         return false;
     }
-
     // // 2) Prepare for flash
 
     printf("Preparing for flash...\n");
@@ -253,7 +307,9 @@ int main(int argc, char* argv[])
     long offset = 0;
     char* file_name = NULL;
     char* endptr = NULL;
+    char* reboot_opt = NULL;
 
+    bool reboot_requested = false;
     bool flash_jumploader = false;
 
     if(argc < 2)
@@ -270,10 +326,11 @@ int main(int argc, char* argv[])
         {"offset",     optional_argument, NULL, 'o'},
         {"file",       required_argument, NULL, 'f'},
         {"jumploader", required_argument, NULL, 'j'},
+        {"reboot",     required_argument, NULL, 'r'},
         {NULL,0,0,0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hVv:o:f:j", longoptions, &opt_index)) != -1)
+    while ((opt = getopt_long(argc, argv, "hVv:o:r:f:j", longoptions, &opt_index)) != -1)
     {
         switch (opt)
         {
@@ -308,6 +365,10 @@ int main(int argc, char* argv[])
                     exit(1);
                 }
                 break;
+            case 'r': // reboot
+                reboot_opt = optarg;
+                reboot_requested = true;
+                break;
             case 'j': // Jumploader
                 flash_jumploader = true;
                 break;
@@ -318,6 +379,7 @@ int main(int argc, char* argv[])
                     case 'f':
                     case 'v':
                     case 'o':
+                    case 'r':
                         fprintf(stderr, "ERROR: option '-%c' requires a parameter.\n", optopt);
                         break;
                     case 0:
@@ -437,7 +499,7 @@ int main(int argc, char* argv[])
 
         if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
              (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
-             (flash(handle, offset, fp, file_size, false)))
+             (flash(handle, offset, fp, file_size, false, reboot_requested, reboot_opt)))
         {
             printf("Device succesfully flashed!\n");
         }
