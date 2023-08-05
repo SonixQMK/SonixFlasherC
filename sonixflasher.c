@@ -471,6 +471,7 @@ int main(int argc, char* argv[])
 
             // Set max firmware to 64k, useful when flashing a Sonix Board that isnt in BL mode (Redragons, Keychrons)
             MAX_FIRMWARE = MAX_FIRMWARE_SN32F240; // Maybe add a param to override this (?)
+            printf("Warning: We assume a ROM size of 64k.\n");
         }
 
         // Set max fw size depending on VID/PID
@@ -484,7 +485,6 @@ int main(int argc, char* argv[])
                     break;
 
                 case SN268_PID:
-                default:
                     MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
                     if(!flash_jumploader && offset == 0) // Failsafe when flashing a 268 w/o jumploader and offset
@@ -494,8 +494,11 @@ int main(int argc, char* argv[])
 
                         offset = QMK_OFFSET_DEFAULT;
                     }
-
                     break;
+
+                default:
+                    fprintf(stderr, "ERROR: Unsupported sonix bootloader device. Quitting.\n");
+                    exit(1);
             }
         }
 
