@@ -12,6 +12,7 @@
 #define RESPONSE_LEN 64
 #define MAX_FIRMWARE_SN32F260 (30 * 1024) //30k
 #define MAX_FIRMWARE_SN32F240 (64 * 1024) //64k
+#define MAX_FIRMWARE_SN32F290 (256 * 1024) //256k
 #define QMK_OFFSET_DEFAULT 0x200
 
 #define CMD_BASE 0x55AA0000
@@ -23,6 +24,7 @@
 #define SN268_PID  0x7010
 #define SN248B_PID 0x7040
 #define SN248_PID  0x7900
+#define SN299_PID  0x7140
 
 #define EVISION_VID 0x320F
 #define APPLE_VID 0x05ac
@@ -470,7 +472,7 @@ int main(int argc, char* argv[])
         printf("Device opened successfully...\n");
 
         // Check VID/PID
-        if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID))
+        if(vid != SONIX_VID  || (pid != SN248_PID && pid != SN248B_PID && pid != SN268_PID && pid !=SN299_PID))
         {
             if(vid == EVISION_VID && !reboot_requested) printf("Warning: eVision VID detected! You probably need to use the reboot option.\n");
             if(vid == APPLE_VID && !reboot_requested) printf("Warning: Apple VID detected! You probably need to use the reboot option.\n");
@@ -492,7 +494,9 @@ int main(int argc, char* argv[])
                 case SN248B_PID:
                     MAX_FIRMWARE = MAX_FIRMWARE_SN32F240;
                     break;
-
+                case SN299_PID:
+                    MAX_FIRMWARE = MAX_FIRMWARE_SN32F290;
+                    break;
                 case SN268_PID:
                     MAX_FIRMWARE = MAX_FIRMWARE_SN32F260;
 
