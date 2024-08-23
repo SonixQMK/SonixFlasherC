@@ -9,7 +9,8 @@
 
 #include <hidapi.h>
 
-#define RESPONSE_LEN 64
+#define REPORT_SIZE 64
+#define REPORT_LENGTH (REPORT_SIZE + 1)
 #define MAX_FIRMWARE_SN32F260 (30 * 1024) //30k
 #define MAX_FIRMWARE_SN32F240 (64 * 1024) //64k
 #define MAX_FIRMWARE_SN32F240C (128 * 1024) //128k
@@ -98,9 +99,9 @@ void write_buffer_32(unsigned char *data, uint32_t cmd)
 
 bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length)
 {
-    if(length > 65)
+    if(length > REPORT_LENGTH)
     {
-        fprintf(stderr, "ERROR: Report cant be more than 65 bytes!!\n");
+        fprintf(stderr, "ERROR: Report can't be more than %d bytes!! (Attempted: %zu bytes)\n", REPORT_SIZE, length);
         return false;
     }
 
@@ -117,12 +118,12 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length)
 
 int hid_get_feature(hid_device *dev, unsigned char *data)
 {
-    return hid_get_feature_report(dev, data, RESPONSE_LEN + 1);
+    return hid_get_feature_report(dev, data, REPORT_LENGTH);
 }
 
 bool send_magic_command(hid_device *dev, const uint32_t *command)
 {
-    unsigned char buf[65];
+    unsigned char buf[REPORT_LENGTH];
 
     clear_buffer(buf, sizeof(buf));
     write_buffer_32(buf,command[0]);
@@ -156,7 +157,7 @@ bool reboot_to_bootloader(hid_device *dev, char *oem_option)
 
 bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip_size_check, bool oem_reboot, char *oem_option)
 {
-    unsigned char buf[65];
+    unsigned char buf[REPORT_LENGTH];
     int read_bytes;
     uint32_t resp = 0;
     uint32_t status = 0;
@@ -187,10 +188,10 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     printf("Initializing flash...\n");
 
-    clear_buffer(buf, 65);
+    clear_buffer(buf, REPORT_LENGTH);
     write_buffer_32(buf, CMD_INIT);
     uint8_t attempt_no = 1;
-    while(!hid_set_feature(dev, buf, 65) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
+    while(!hid_set_feature(dev, buf, REPORT_LENGTH) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
         printf("Flash failed to init, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
         sleep(3);
@@ -198,11 +199,11 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     }
     if(attempt_no > MAX_ATTEMPTS) return false;
 
-    clear_buffer(buf, 65);
+    clear_buffer(buf, REPORT_LENGTH);
     read_bytes = hid_get_feature(dev, buf);
-    if(read_bytes != RESPONSE_LEN + 1)
+    if(read_bytes != REPORT_LENGTH)
     {
-        fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d.\n", read_bytes, RESPONSE_LEN);
+        fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d.\n", read_bytes, REPORT_SIZE);
         return false;
     }
     bool reboot_fail = !read_response_32(buf, 0, &resp);
@@ -220,13 +221,13 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     printf("Preparing for flash...\n");
 
-    clear_buffer(buf, 65);
+    clear_buffer(buf, REPORT_LENGTH);
     write_buffer_32(buf, CMD_PREPARE);
     write_buffer_32(buf+5, (uint32_t)offset);
-    write_buffer_32(buf+9, (uint32_t)(fw_size/64));
-    if(!hid_set_feature(dev, buf, 65)) return false;
+    write_buffer_32(buf+9, (uint32_t)(fw_size/REPORT_SIZE));
+    if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
 
-    clear_buffer(buf, 65);
+    clear_buffer(buf, REPORT_LENGTH);
     read_bytes = hid_get_feature(dev, buf);
     if(!read_response_32(buf, CMD_PREPARE, &resp)) // Read cmd
     {
@@ -244,20 +245,20 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     printf("Flashing device, please wait...\n");
 
     size_t bytes_read = 0;
-    clear_buffer(buf, 65);
-    while ((bytes_read = fread(buf+1, 1, 64, firmware)) > 0)
+    clear_buffer(buf, REPORT_LENGTH);
+    while ((bytes_read = fread(buf+1, 1, REPORT_SIZE, firmware)) > 0)
     {
-        if(!hid_set_feature(dev, buf, 65)) return false;
-        clear_buffer(buf, 65);
+        if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
+        clear_buffer(buf, REPORT_LENGTH);
     }
 
     printf("Flashing done. Rebooting.\n");
 
     // // 4) reboot
 
-    clear_buffer(buf, 65);
+    clear_buffer(buf, REPORT_LENGTH);
     write_buffer_32(buf, CMD_REBOOT);
-    if(!hid_set_feature(dev, buf, 65)) return false;
+    if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
 
     return true;
 
@@ -519,7 +520,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        while (file_size % 64 != 0) file_size++; // Add padded zereos (if any) to file_size, since we are using a fixed 64 + 1 buffer, we need to take in consideration when the file doesnt fill the buffer.
+        while (file_size % REPORT_SIZE != 0) file_size++; // Add padded zereos (if any) to file_size, since we are using a fixed 64 + 1 buffer, we need to take in consideration when the file doesnt fill the buffer.
 
         if( ((flash_jumploader  && sanity_check_jumploader_firmware(file_size)) || 
              (!flash_jumploader && sanity_check_firmware(file_size, offset))) &&
