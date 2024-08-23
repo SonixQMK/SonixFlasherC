@@ -17,10 +17,10 @@
 #define MAX_FIRMWARE_SN32F290 (256 * 1024) //256k
 #define QMK_OFFSET_DEFAULT 0x200
 
-#define CMD_BASE 0x55AA0000
-#define CMD_INIT (CMD_BASE + 0x100)
-#define CMD_PREPARE (CMD_BASE + 0x500)
-#define CMD_REBOOT (CMD_BASE + 0x700)
+#define CMD_BASE 0x55AA00
+#define CMD_INIT (CMD_BASE + 0x1)
+#define CMD_PREPARE (CMD_BASE + 0x5)
+#define CMD_REBOOT (CMD_BASE + 0x7)
 
 #define SONIX_VID  0x0c45
 #define SN268_PID  0x7010
@@ -99,13 +99,18 @@ void write_buffer_32(unsigned char *data, uint32_t cmd)
 
 bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length)
 {
-    if(length > REPORT_LENGTH)
+    if(length > REPORT_SIZE)
     {
         fprintf(stderr, "ERROR: Report can't be more than %d bytes!! (Attempted: %zu bytes)\n", REPORT_SIZE, length);
         return false;
     }
+    unsigned char buf[REPORT_LENGTH];
 
-    int res = hid_send_feature_report(dev, data, length);
+    // Set the Report ID byte (first byte of data)
+    buf[0] = 0x0;
+    memcpy(buf + 1, data, length);
+
+    int res = hid_send_feature_report(dev, data, length + 1);
 
     if(res < 0)
     {
@@ -118,12 +123,22 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length)
 
 int hid_get_feature(hid_device *dev, unsigned char *data)
 {
-    return hid_get_feature_report(dev, data, REPORT_LENGTH);
+    int res = hid_get_feature_report(dev, data, REPORT_LENGTH);
+    // If the read was successful and data length is greater than 0
+    if (res > 0) {
+        // Shift the data buffer to remove the first byte
+        memmove(data, data + 1, res - 1);
+        // Return the length of the data excluding the removed first byte
+        return res - 1;
+    }
+
+    // Return 0 if the read was not successful or the buffer length is not sufficient
+    return 0;
 }
 
 bool send_magic_command(hid_device *dev, const uint32_t *command)
 {
-    unsigned char buf[REPORT_LENGTH];
+    unsigned char buf[REPORT_SIZE];
 
     clear_buffer(buf, sizeof(buf));
     write_buffer_32(buf,command[0]);
@@ -157,7 +172,7 @@ bool reboot_to_bootloader(hid_device *dev, char *oem_option)
 
 bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip_size_check, bool oem_reboot, char *oem_option)
 {
-    unsigned char buf[REPORT_LENGTH];
+    unsigned char buf[REPORT_SIZE];
     int read_bytes;
     uint32_t resp = 0;
     uint32_t status = 0;
@@ -188,10 +203,10 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     printf("Initializing flash...\n");
 
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_INIT);
     uint8_t attempt_no = 1;
-    while(!hid_set_feature(dev, buf, REPORT_LENGTH) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
+    while(!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
         printf("Flash failed to init, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
         sleep(3);
@@ -199,9 +214,9 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     }
     if(attempt_no > MAX_ATTEMPTS) return false;
 
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     read_bytes = hid_get_feature(dev, buf);
-    if(read_bytes != REPORT_LENGTH)
+    if(read_bytes != REPORT_SIZE)
     {
         fprintf(stderr, "ERROR: Failed to initialize: got response of length %d, expected %d.\n", read_bytes, REPORT_SIZE);
         return false;
@@ -221,20 +236,20 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     printf("Preparing for flash...\n");
 
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_PREPARE);
-    write_buffer_32(buf+5, (uint32_t)offset);
-    write_buffer_32(buf+9, (uint32_t)(fw_size/REPORT_SIZE));
-    if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
+    write_buffer_32(buf+4, (uint32_t)offset);
+    write_buffer_32(buf+8, (uint32_t)(fw_size/REPORT_SIZE));
+    if(!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     read_bytes = hid_get_feature(dev, buf);
     if(!read_response_32(buf, CMD_PREPARE, &resp)) // Read cmd
     {
         fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_PREPARE);
         return false;
     }
-    if(!read_response_32(buf + 5, EXPECTED_STATUS, &status))// Read status
+    if(!read_response_32(buf + 4, EXPECTED_STATUS, &status))// Read status
     {
         fprintf(stderr, "ERROR: Failed to initialize: response status is 0x%08x, expected 0x%08x.\n", status, EXPECTED_STATUS);
         return false;
@@ -245,20 +260,20 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     printf("Flashing device, please wait...\n");
 
     size_t bytes_read = 0;
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     while ((bytes_read = fread(buf+1, 1, REPORT_SIZE, firmware)) > 0)
     {
-        if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
-        clear_buffer(buf, REPORT_LENGTH);
+        if(!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
+        clear_buffer(buf, REPORT_SIZE);
     }
 
     printf("Flashing done. Rebooting.\n");
 
     // // 4) reboot
 
-    clear_buffer(buf, REPORT_LENGTH);
+    clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_REBOOT);
-    if(!hid_set_feature(dev, buf, REPORT_LENGTH)) return false;
+    if(!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
     return true;
 
