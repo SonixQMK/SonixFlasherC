@@ -18,9 +18,11 @@
 #define QMK_OFFSET_DEFAULT 0x200
 
 #define CMD_BASE 0x55AA00
-#define CMD_INIT (CMD_BASE + 0x1)
-#define CMD_PREPARE (CMD_BASE + 0x5)
-#define CMD_REBOOT (CMD_BASE + 0x7)
+#define CMD_GET_FW_VERSION (CMD_BASE + 0x1)
+#define CMD_ENABLE_PROGRAM (CMD_BASE + 0x5)
+#define CMD_RETURN_USER_MODE (CMD_BASE + 0x7)
+
+#define CMD_OK 0xFAFAFAFA
 
 #define SONIX_VID  0x0c45
 #define SN268_PID  0x7010
@@ -31,8 +33,6 @@
 
 #define EVISION_VID 0x320F
 #define APPLE_VID 0x05ac
-
-#define EXPECTED_STATUS 0xFAFAFAFA
 
 #define MAX_ATTEMPTS 5
 
@@ -204,7 +204,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     printf("Initializing flash...\n");
 
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_INIT);
+    write_buffer_32(buf, CMD_GET_FW_VERSION);
     uint8_t attempt_no = 1;
     while(!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
@@ -222,14 +222,14 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
         return false;
     }
     bool reboot_fail = !read_response_32(buf, 0, &resp);
-    bool init_fail = !read_response_32(buf, CMD_INIT, &resp);
+    bool init_fail = !read_response_32(buf, CMD_GET_FW_VERSION, &resp);
     if(init_fail)
     {
         if(oem_reboot && reboot_fail)
         {
             fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, 0);
         }
-        else fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_INIT);
+        else fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_GET_FW_VERSION);
         return false;
     }
     // // 2) Prepare for flash
@@ -237,21 +237,21 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     printf("Preparing for flash...\n");
 
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_PREPARE);
+    write_buffer_32(buf, CMD_ENABLE_PROGRAM);
     write_buffer_32(buf+4, (uint32_t)offset);
     write_buffer_32(buf+8, (uint32_t)(fw_size/REPORT_SIZE));
     if(!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
     clear_buffer(buf, REPORT_SIZE);
     read_bytes = hid_get_feature(dev, buf);
-    if(!read_response_32(buf, CMD_PREPARE, &resp)) // Read cmd
+    if(!read_response_32(buf, CMD_ENABLE_PROGRAM, &resp)) // Read cmd
     {
-        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_PREPARE);
+        fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_ENABLE_PROGRAM);
         return false;
     }
-    if(!read_response_32(buf + 4, EXPECTED_STATUS, &status))// Read status
+    if(!read_response_32(buf + 4, CMD_OK, &status))// Read status
     {
-        fprintf(stderr, "ERROR: Failed to initialize: response status is 0x%08x, expected 0x%08x.\n", status, EXPECTED_STATUS);
+        fprintf(stderr, "ERROR: Failed to initialize: response status is 0x%08x, expected 0x%08x.\n", status, CMD_OK);
         return false;
     }
 
@@ -272,7 +272,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     // // 4) reboot
 
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_REBOOT);
+    write_buffer_32(buf, CMD_RETURN_USER_MODE);
     if(!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
     return true;
