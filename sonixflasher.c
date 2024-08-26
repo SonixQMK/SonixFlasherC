@@ -217,7 +217,7 @@ int sn32_decode_chip(unsigned char *data) {
 }
 uint16_t sn32_get_cs_level(unsigned char *data) {
     cs_level             = 0;
-    uint16_t combined_cs = (data[12] << 8) | data[13];
+    uint16_t combined_cs = (data[14] << 8) | data[15];
 
     if (combined_cs == CS0) {
         printf("Current Security level: CS0. \n");
