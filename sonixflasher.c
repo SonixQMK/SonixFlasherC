@@ -154,7 +154,8 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
     memcpy(buf + 1, data, length);
 
     if (hid_send_feature_report(dev, data, length + 1) < 0) {
-        fprintf(stderr, "ERROR: Error while writing!\n");
+        unsigned char command = data[0];
+        fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", command, hid_error(dev));
         return false;
     }
 
