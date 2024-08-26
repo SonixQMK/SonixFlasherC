@@ -33,7 +33,6 @@
 
 #define CMD_OK 0xFAFAFAFA
 #define VALID_FW 0xAAAA5555
-#define ISP_PASSWORD 0xFEFF
 
 #define SN240 1
 #define SN260 2
@@ -60,13 +59,14 @@
 #define PROJECT_NAME "sonixflasher"
 #define PROJECT_VER "2.0.1"
 
-uint16_t CS0              = 0;
-uint16_t USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
-long     MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
-bool     flash_jumploader = false;
-bool     debug            = false;
-int      chip;
-uint16_t cs_level;
+uint16_t        CS0              = 0;
+uint16_t        USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
+long            MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
+bool            flash_jumploader = false;
+bool            debug            = false;
+static uint16_t password         = 0x0000; // Initial ISP password
+int             chip;
+uint16_t        cs_level;
 
 static void print_usage(char *m_name) {
     fprintf(stderr,
@@ -215,6 +215,19 @@ int sn32_decode_chip(unsigned char *data) {
         return 0;
     }
 }
+
+bool sn32_get_isp_password(unsigned char *data) {
+    uint16_t received_password = (data[12] << 8) | data[13];
+    printf("Expected password: 0x%04X\n", password);
+    printf("Received password: 0x%04X\n", received_password);
+    if (received_password != password) {
+        printf("Updating password from 0x%04X to 0x%04X\n", password, received_password);
+        password = received_password;
+        return false;
+    }
+    return true;
+}
+
 uint16_t sn32_get_cs_level(unsigned char *data) {
     cs_level             = 0;
     uint16_t combined_cs = (data[14] << 8) | data[15];
@@ -316,6 +329,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     sleep(2);
     clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_GET_FW_VERSION);
+    write_buffer_32(buf + 4, password);
     uint8_t attempt_no = 1;
     while (!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
@@ -326,8 +340,10 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (attempt_no > MAX_ATTEMPTS) return false;
 
     if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
-    chip             = sn32_decode_chip(buf);
-    cs_level         = sn32_get_cs_level(buf);
+    chip     = sn32_decode_chip(buf);
+    cs_level = sn32_get_cs_level(buf);
+    if (!sn32_get_isp_password(buf)) return false;
+
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
     bool init_fail   = !read_response_32(buf, 0, CMD_GET_FW_VERSION, &resp);
     if (init_fail) {
@@ -346,7 +362,7 @@ bool protocol_blank_check(hid_device *dev) {
     printf("Checking ISP password...\n"); // aka Blank Check
     clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_COMPARE_ISP_PASSWORD);
-    if (chip == SN240) write_buffer_32(buf + 4, ISP_PASSWORD);
+    write_buffer_32(buf + 4, password);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
@@ -358,6 +374,7 @@ bool protocol_reset_cs(hid_device *dev) {
     printf("Resetting ISP password...\n");
     clear_buffer(buf, REPORT_SIZE);
     write_buffer_32(buf, CMD_SET_ENCRYPTION_ALGO);
+    write_buffer_32(buf + 4, password);
     write_buffer_32(buf + 6, CS0); // WARNING THIS SETS CS
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
@@ -647,13 +664,24 @@ int main(int argc, char *argv[]) {
             printf("Warning: Flashing a non-sonix bootloader device, you are now on your own.\n");
             sleep(3);
         }
-        protocol_init(handle, reboot_requested, reboot_opt);
+        attempt_no = 1;
+        bool ok    = protocol_init(handle, reboot_requested, reboot_opt);
+        while (!ok && attempt_no <= MAX_ATTEMPTS) {
+            printf("Device failed to init, re-trying in 3 seconds. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
+            sleep(3);
+            ok = protocol_init(handle, reboot_requested, reboot_opt);
+            attempt_no++;
+        }
+        if (!ok) exit(1);
         sleep(3);
-        if (chip == SN240 || chip == SN290) protocol_blank_check(handle); // 240 and 290
+        if (chip == SN240 || chip == SN290) ok = protocol_blank_check(handle); // 240 and 290
+        if (!ok) exit(1);
         sleep(1);
-        if (cs_level != CS0) protocol_reset_cs(handle);
+        if (cs_level != CS0) ok = protocol_reset_cs(handle);
+        if (!ok) exit(1);
         sleep(1);
-        if (chip == SN240 || chip == SN290) erase_flash(handle);
+        if (chip == SN240 || chip == SN290) ok = erase_flash(handle);
+        if (!ok) exit(1);
         sleep(1);
 
         while (file_size % REPORT_SIZE != 0)
@@ -665,9 +693,11 @@ int main(int argc, char *argv[]) {
             protocol_reboot_user(handle);
         } else {
             fprintf(stderr, "ERROR: Could not flash the device. Try again.\n");
+            exit(1);
         }
     } else {
         fprintf(stderr, "ERROR: Could not open the device (Is the device connected?).\n");
+        exit(1);
     }
 
     fclose(fp);
