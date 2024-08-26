@@ -354,7 +354,8 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (attempt_no > MAX_ATTEMPTS) return false;
 
     if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
-    chip     = sn32_decode_chip(buf);
+    chip = sn32_decode_chip(buf);
+    if (chip == 0) return false;
     cs_level = sn32_get_cs_level(buf);
     if (!sn32_check_isp_password(buf)) return false;
 
