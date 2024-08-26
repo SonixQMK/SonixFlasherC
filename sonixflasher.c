@@ -239,7 +239,7 @@ uint16_t sn32_get_cs_level(unsigned char *data) {
     return combined_cs;
 }
 
-bool hid_get_feature(hid_device *dev, unsigned char *data) {
+bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
     clear_buffer(data, sizeof(data));
     int res = hid_get_feature_report(dev, data, REPORT_LENGTH);
 
@@ -255,14 +255,14 @@ bool hid_get_feature(hid_device *dev, unsigned char *data) {
         // Check the status directly in the data buffer
         unsigned int status = *((unsigned int *)(data + 4));
         if (status != CMD_OK) {
-            fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x.\n", status, CMD_OK);
+            fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02X.\n", status, CMD_OK, command & 0xFF);
             return false;
         }
         // Success
         return true;
 
     } else {
-        fprintf(stderr, "ERROR: Failed to get feature report: got response of length %d, expected %d.\n", res, REPORT_LENGTH);
+        fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02X: got response of length %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
         return false;
     }
 }
@@ -324,7 +324,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     }
     if (attempt_no > MAX_ATTEMPTS) return false;
 
-    if (!hid_get_feature(dev, buf)) return false;
+    if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
     chip             = sn32_decode_chip(buf);
     cs_level         = sn32_get_cs_level(buf);
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
@@ -359,7 +359,7 @@ bool protocol_reset_cs(hid_device *dev) {
     write_buffer_32(buf, CMD_SET_ENCRYPTION_ALGO);
     write_buffer_32(buf + 6, CS0); // WARNING THIS SETS CS
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
-    if (!hid_get_feature(dev, buf)) return false;
+    if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
 }
@@ -372,7 +372,7 @@ bool erase_flash(hid_device *dev) {
     write_buffer_32(buf, CMD_ENABLE_ERASE);
     write_buffer_32(buf + 8, USER_ROM_SIZE);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
-    if (!hid_get_feature(dev, buf)) return false;
+    if (!hid_get_feature(dev, buf, CMD_ENABLE_ERASE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
 }
@@ -416,7 +416,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     write_buffer_32(buf + 8, (uint32_t)(fw_size / REPORT_SIZE));
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
-    if (!hid_get_feature(dev, buf)) return false;
+    if (!hid_get_feature(dev, buf, CMD_ENABLE_PROGRAM)) return false;
     clear_buffer(buf, REPORT_SIZE);
     // return true;
 
@@ -434,7 +434,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     // 07) Verify flash complete
     printf("\n");
     printf("Verifying flash completion...\n");
-    if (!hid_get_feature(dev, buf)) return false;
+    if (!hid_get_feature(dev, buf, CMD_ENABLE_PROGRAM)) return false;
     if (read_response_32(buf, (sizeof(buf) - sizeof(VALID_FW)), VALID_FW, &resp)) {
         printf("Flash completion verified. \n");
         return true;
