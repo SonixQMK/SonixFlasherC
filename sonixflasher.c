@@ -68,6 +68,19 @@ static uint16_t password         = 0x0000; // Initial ISP password
 int             chip;
 uint16_t        cs_level;
 
+static void print_vidpid_table() {
+    printf("Supported VID/PID pairs:\n");
+    printf("+-----------------+------------+------------+\n");
+    printf("|      Device     |    VID     |    PID     |\n");
+    printf("+-----------------+------------+------------+\n");
+    printf("| SONIX SN26x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN268_PID);
+    printf("| SONIX SN24xB    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248B_PID);
+    printf("| SONIX SN24xC    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248C_PID);
+    printf("| SONIX SN24x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248_PID);
+    printf("| SONIX SN29x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN299_PID);
+    printf("+-----------------+------------+------------+\n");
+}
+
 static void print_usage(char *m_name) {
     fprintf(stderr,
             "Usage: \n"
@@ -79,6 +92,7 @@ static void print_usage(char *m_name) {
             "  --jumploader -j  Define if we are flashing a jumploader \n"
             "  --reboot -r      Request bootloader reboot in OEM firmware (options: evision, hfd) \n"
             "  --debug -d       Enable debug mode \n"
+            "  --list-vidpid -l Display supported VID/PID pairs\n"
             "  --version -V     Print version information \n"
             "\n"
             "Examples: \n"
@@ -216,7 +230,7 @@ int sn32_decode_chip(unsigned char *data) {
     }
 }
 
-bool sn32_get_isp_password(unsigned char *data) {
+bool sn32_check_isp_password(unsigned char *data) {
     uint16_t received_password = (data[12] << 8) | data[13];
     printf("Expected password: 0x%04X\n", password);
     printf("Received password: 0x%04X\n", received_password);
@@ -342,7 +356,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
     chip     = sn32_decode_chip(buf);
     cs_level = sn32_get_cs_level(buf);
-    if (!sn32_get_isp_password(buf)) return false;
+    if (!sn32_check_isp_password(buf)) return false;
 
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
     bool init_fail   = !read_response_32(buf, 0, CMD_GET_FW_VERSION, &resp);
@@ -525,12 +539,15 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    struct option longoptions[] = {{"help", no_argument, 0, 'h'}, {"version", no_argument, 0, 'V'}, {"vidpid", required_argument, NULL, 'v'}, {"offset", optional_argument, NULL, 'o'}, {"file", required_argument, NULL, 'f'}, {"jumploader", no_argument, NULL, 'j'}, {"reboot", required_argument, NULL, 'r'}, {"debug", no_argument, NULL, 'd'}, {"nooffset", no_argument, NULL, 'k'}, {NULL, 0, 0, 0}};
+    struct option longoptions[] = {{"help", no_argument, 0, 'h'}, {"version", no_argument, 0, 'V'}, {"vidpid", required_argument, NULL, 'v'}, {"offset", optional_argument, NULL, 'o'}, {"file", required_argument, NULL, 'f'}, {"jumploader", no_argument, NULL, 'j'}, {"reboot", required_argument, NULL, 'r'}, {"debug", no_argument, NULL, 'd'}, {"nooffset", no_argument, NULL, 'k'}, {"list-vidpid", no_argument, NULL, 'l'}, {NULL, 0, 0, 0}};
 
-    while ((opt = getopt_long(argc, argv, "hVv:o:r:f:jdk", longoptions, &opt_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hlVv:o:r:f:jdk", longoptions, &opt_index)) != -1) {
         switch (opt) {
             case 'h': // Show help
                 print_usage(PROJECT_NAME);
+                break;
+            case 'l': // list-vidpid
+                print_vidpid_table();
                 break;
             case 'V': // version
                 display_version(PROJECT_NAME);
@@ -548,6 +565,7 @@ int main(int argc, char *argv[]) {
                 // make sure we have the correct vidpid
                 if (vid == 0 || pid == 0) {
                     fprintf(stderr, "ERROR: invalid vidpid -'%s'.\n", optarg);
+                    print_vidpid_table();
                     exit(1);
                 }
                 break;
