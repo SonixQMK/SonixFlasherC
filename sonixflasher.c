@@ -539,8 +539,19 @@ int main(int argc, char *argv[]) {
         print_usage(PROJECT_NAME);
         exit(1);
     }
-
-    struct option longoptions[] = {{"help", no_argument, 0, 'h'}, {"version", no_argument, 0, 'V'}, {"vidpid", required_argument, NULL, 'v'}, {"offset", optional_argument, NULL, 'o'}, {"file", required_argument, NULL, 'f'}, {"jumploader", no_argument, NULL, 'j'}, {"reboot", required_argument, NULL, 'r'}, {"debug", no_argument, NULL, 'd'}, {"nooffset", no_argument, NULL, 'k'}, {"list-vidpid", no_argument, NULL, 'l'}, {NULL, 0, 0, 0}};
+    // clang-format off
+    struct option longoptions[] = {{"help", no_argument, 0, 'h'},
+                                 {"version", no_argument, 0, 'V'},
+                                 {"vidpid", required_argument, NULL, 'v'},
+                                 {"offset", required_argument, NULL, 'o'},
+                                 {"file", required_argument, NULL, 'f'},
+                                 {"jumploader", no_argument, NULL, 'j'},
+                                 {"reboot", required_argument, NULL, 'r'},
+                                 {"debug", no_argument, NULL, 'd'},
+                                 {"nooffset", no_argument, NULL, 'k'},
+                                 {"list-vidpid", no_argument, NULL, 'l'},
+                                 {NULL, 0, 0, 0}};
+    // clang-format on
 
     while ((opt = getopt_long(argc, argv, "hlVv:o:r:f:jdk", longoptions, &opt_index)) != -1) {
         switch (opt) {
