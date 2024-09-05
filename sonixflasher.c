@@ -19,6 +19,13 @@
 #define USER_ROM_SIZE_SN32F290 256  // in KB
 #define USER_ROM_SIZE_KB(x) ((x) * 1024)
 
+#define USER_ROM_PAGES_SN32F260 480
+#define USER_ROM_PAGES_SN32F240 64
+#define USER_ROM_PAGES_SN32F240B 1024
+#define USER_ROM_PAGES_SN32F240C 128
+#define USER_ROM_PAGES_SN32F280 128
+#define USER_ROM_PAGES_SN32F290 256
+
 #define QMK_OFFSET_DEFAULT 0x200
 
 #define CMD_BASE 0x55AA00
@@ -63,6 +70,7 @@
 
 uint16_t        CS0              = 0;
 uint16_t        USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
+uint16_t        USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
 long            MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
 bool            flash_jumploader = false;
 bool            debug            = false;
@@ -186,45 +194,51 @@ int sn32_decode_chip(unsigned char *data) {
         switch (data[9]) {
             case SN240:
                 printf("240 Detected.\n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F240;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0xFFFF;
-                sn32_variant  = SN240;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0xFFFF;
+                sn32_variant   = SN240;
                 break;
             case SN260:
                 printf("260 Detected.\n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F260;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0;
-                sn32_variant  = SN260;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F260;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F260;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0;
+                sn32_variant   = SN260;
                 break;
             case SN240B:
                 printf("240B Detected.\n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F240B;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0;
-                sn32_variant  = SN240B;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240B;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F240B;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0;
+                sn32_variant   = SN240B;
                 break;
             case SN280:
                 printf("280 Detected.\n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F280;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0xFFFF;
-                sn32_variant  = SN280;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F280;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F280;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0xFFFF;
+                sn32_variant   = SN280;
                 break;
             case SN290:
                 printf("290 Detected.\n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F290;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0xFFFF;
-                sn32_variant  = SN290;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F290;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F290;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0xFFFF;
+                sn32_variant   = SN290;
                 break;
             case SN240C:
                 printf("240C Detected. \n");
-                USER_ROM_SIZE = USER_ROM_SIZE_SN32F240C;
-                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0           = 0xFFFF;
-                sn32_variant  = SN240C;
+                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240C;
+                USER_ROM_PAGES = USER_ROM_PAGES_SN32F240C;
+                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0            = 0xFFFF;
+                sn32_variant   = SN240C;
                 break;
             default:
                 fprintf(stderr, "ERROR: Unsupported bootloader version: %d, we don't support this chip.\n", data[9]);
