@@ -15,6 +15,7 @@
 #define USER_ROM_SIZE_SN32F240 64   // in KB
 #define USER_ROM_SIZE_SN32F240B 64  // in KB
 #define USER_ROM_SIZE_SN32F240C 128 // in KB
+#define USER_ROM_SIZE_SN32F280 128  // in KB
 #define USER_ROM_SIZE_SN32F290 256  // in KB
 #define USER_ROM_SIZE_KB(x) ((x) * 1024)
 
@@ -37,6 +38,7 @@
 #define SN240 1
 #define SN260 2
 #define SN240B 3
+#define SN280 4
 #define SN290 5
 #define SN240C 6
 
@@ -202,6 +204,13 @@ int sn32_decode_chip(unsigned char *data) {
                 MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0           = 0;
                 sn32_variant  = SN240B;
+                break;
+            case SN280:
+                printf("280 Detected.\n");
+                USER_ROM_SIZE = USER_ROM_SIZE_SN32F280;
+                MAX_FIRMWARE  = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                CS0           = 0xFFFF;
+                sn32_variant  = SN280;
                 break;
             case SN290:
                 printf("290 Detected.\n");
