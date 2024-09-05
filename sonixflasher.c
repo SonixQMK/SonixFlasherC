@@ -332,9 +332,9 @@ int main(int argc, char* argv[])
         {"help",       no_argument, 0, 'h'},
         {"version",    no_argument, 0, 'V'},
         {"vidpid",     required_argument, NULL, 'v'},
-        {"offset",     optional_argument, NULL, 'o'},
+        {"offset",     required_argument, NULL, 'o'},
         {"file",       required_argument, NULL, 'f'},
-        {"jumploader", required_argument, NULL, 'j'},
+        {"jumploader", no_argument, 0, 'j'},
         {"reboot",     required_argument, NULL, 'r'},
         {NULL,0,0,0}
     };
