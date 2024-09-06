@@ -68,7 +68,7 @@
 #define MAX_ATTEMPTS 5
 
 #define PROJECT_NAME "sonixflasher"
-#define PROJECT_VER "2.0.1"
+#define PROJECT_VER "2.0.2"
 
 uint16_t        CS0              = 0;
 uint16_t        USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
