@@ -419,6 +419,7 @@ bool protocol_code_option_check(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 02) Prepare for Code Option Table check
     printf("Checking Code Option Table...\n");
+    clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_COMPARE_CODE_OPTION;
     write_buffer_16(buf + 1, CMD_BASE);
     write_buffer_16(buf + 3, code_option);
@@ -499,7 +500,6 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     if (!hid_get_feature(dev, buf, CMD_ENABLE_PROGRAM)) return false;
     clear_buffer(buf, REPORT_SIZE);
-    // return true;
 
     // 06) Flash
     printf("Flashing device, please wait...\n");
@@ -509,7 +509,6 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     while ((bytes_read = fread(buf, 1, REPORT_SIZE, firmware)) > 0) {
         if (bytes_read < REPORT_SIZE) {
             fprintf(stderr, "WARNING: Read %zu bytes, expected %d bytes.\n", bytes_read, REPORT_SIZE);
-            exit(1);
         }
         if (!hid_set_feature(dev, buf, bytes_read)) return false;
 
