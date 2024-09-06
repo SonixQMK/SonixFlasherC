@@ -28,16 +28,17 @@
 
 #define QMK_OFFSET_DEFAULT 0x200
 
-#define CMD_BASE 0x55AA00
-#define CMD_GET_FW_VERSION (CMD_BASE + 0x1)
-#define CMD_COMPARE_ISP_PASSWORD (CMD_BASE + 0x2)
-#define CMD_SET_ENCRYPTION_ALGO (CMD_BASE + 0x3)
-#define CMD_ENABLE_ERASE (CMD_BASE + 0x4)
-#define CMD_ENABLE_PROGRAM (CMD_BASE + 0x5)
-#define CMD_GET_CHECKSUM (CMD_BASE + 0x6)
-#define CMD_RETURN_USER_MODE (CMD_BASE + 0x7)
-#define CMD_SET_CS (CMD_BASE + 0x8)
-#define CMD_GET_CS (CMD_BASE + 0x9)
+#define CMD_BASE 0x55AA
+#define CMD_GET_FW_VERSION 0x1
+#define CMD_COMPARE_ISP_PASSWORD 0x2
+#define CMD_SET_ENCRYPTION_ALGO 0x3
+#define CMD_ENABLE_ERASE 0x4
+#define CMD_ENABLE_PROGRAM 0x5
+#define CMD_GET_CHECKSUM 0x6
+#define CMD_RETURN_USER_MODE 0x7
+#define CMD_SET_CS 0x8
+#define CMD_GET_CS 0x9
+#define CMD_VERIFY(x) ((CMD_BASE << 8) | (x))
 
 #define CMD_OK 0xFAFAFAFA
 #define VALID_FW 0xAAAA5555
@@ -148,6 +149,10 @@ void write_buffer_32(unsigned char *data, uint32_t cmd) {
     memcpy(data, &cmd, 4);
 }
 
+void write_buffer_16(unsigned char *data, uint16_t cmd) {
+    memcpy(data, &cmd, 2);
+}
+
 void print_data(const unsigned char *data, int length) {
     for (int i = 0; i < length; i++) {
         if (i % 16 == 0) {
@@ -172,17 +177,30 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
         printf("Sending payload...\n");
         print_data(data, length);
     }
+    // hidapi will hijack a 0x00 for Report ID and strip it from the buffer.
+    // Check if the first byte of data is 0x00
+    if (data[0] == 0x00) {
+        // Allocate a temporary buffer with an extra byte
+        unsigned char temp_buf[REPORT_SIZE + 1];
 
-    unsigned char buf[REPORT_LENGTH];
+        // Set the Report ID byte (0x00) at the start of the buffer
+        temp_buf[0] = 0x00;
 
-    // Set the Report ID byte (first byte of data)
-    buf[0] = 0x0;
-    memcpy(buf + 1, data, length);
+        // Copy the data into the buffer, starting from the second byte
+        // This allows the actual 0x00 to be sent
+        memcpy(temp_buf + 1, data, length);
 
-    if (hid_send_feature_report(dev, data, length + 1) < 0) {
-        unsigned char command = data[0];
-        fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", command, hid_error(dev));
-        return false;
+        // Send the feature report using the temporary buffer
+        if (hid_send_feature_report(dev, temp_buf, length + 1) < 0) {
+            fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", data[0], hid_error(dev));
+            return false;
+        }
+    } else {
+        // Send the report as is
+        if (hid_send_feature_report(dev, data, length) < 0) {
+            fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", data[0], hid_error(dev));
+            return false;
+        }
     }
 
     return true;
@@ -367,8 +385,9 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     printf("Fetching flash version...\n");
     sleep(2);
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_GET_FW_VERSION);
-    write_buffer_32(buf + 4, password);
+    buf[0] = CMD_GET_FW_VERSION;
+    write_buffer_16(buf + 1, CMD_BASE);
+    write_buffer_16(buf + 3, password);
     uint8_t attempt_no = 1;
     while (!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
@@ -385,7 +404,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (!sn32_check_isp_password(buf)) return false;
 
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
-    bool init_fail   = !read_response_32(buf, 0, CMD_GET_FW_VERSION, &resp);
+    bool init_fail   = !read_response_32(buf, 0, CMD_VERIFY(CMD_GET_FW_VERSION), &resp);
     if (init_fail) {
         if (oem_reboot && reboot_fail) {
             fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, 0);
@@ -400,9 +419,9 @@ bool protocol_blank_check(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 02) Prepare for ISP password check
     printf("Checking ISP password...\n"); // aka Blank Check
-    clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_COMPARE_ISP_PASSWORD);
-    write_buffer_32(buf + 4, password);
+    buf[0] = CMD_COMPARE_ISP_PASSWORD;
+    write_buffer_16(buf + 1, CMD_BASE);
+    write_buffer_16(buf + 3, password);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
@@ -413,9 +432,10 @@ bool protocol_reset_cs(hid_device *dev) {
     // 03) Reset ISP password
     printf("Resetting ISP password...\n");
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_SET_ENCRYPTION_ALGO);
-    write_buffer_32(buf + 4, password);
-    write_buffer_32(buf + 6, CS0); // WARNING THIS SETS CS
+    buf[0] = CMD_SET_ENCRYPTION_ALGO;
+    write_buffer_16(buf + 1, CMD_BASE);
+    write_buffer_16(buf + 3, password);
+    write_buffer_16(buf + 5, CS0); // WARNING THIS SETS CS
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
@@ -427,8 +447,9 @@ bool erase_flash(hid_device *dev) {
     // 04) Erase flash
     printf("Erasing flash...\n");
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_ENABLE_ERASE);
-    write_buffer_32(buf + 8, USER_ROM_SIZE);
+    buf[0] = CMD_ENABLE_ERASE;
+    write_buffer_16(buf + 1, CMD_BASE);
+    write_buffer_16(buf + 8, USER_ROM_PAGES);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_ENABLE_ERASE)) return false;
     clear_buffer(buf, REPORT_SIZE);
@@ -440,7 +461,8 @@ bool protocol_reboot_user(hid_device *dev) {
     // 08) Reboot to User Mode
     printf("Flashing done. Rebooting.\n");
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_RETURN_USER_MODE);
+    buf[0] = CMD_RETURN_USER_MODE;
+    write_buffer_16(buf + 1, CMD_BASE);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
@@ -469,7 +491,8 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
     printf("Enabling Program mode...\n");
     sleep(2);
     clear_buffer(buf, REPORT_SIZE);
-    write_buffer_32(buf, CMD_ENABLE_PROGRAM);
+    buf[0] = CMD_ENABLE_PROGRAM;
+    write_buffer_16(buf + 1, CMD_BASE);
     write_buffer_32(buf + 4, (uint32_t)offset);
     write_buffer_32(buf + 8, (uint32_t)(fw_size / REPORT_SIZE));
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
@@ -483,8 +506,13 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
 
     size_t bytes_read = 0;
     clear_buffer(buf, REPORT_SIZE);
-    while ((bytes_read = fread(buf + 1, 1, REPORT_SIZE, firmware)) > 0) {
-        if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
+    while ((bytes_read = fread(buf, 1, REPORT_SIZE, firmware)) > 0) {
+        if (bytes_read < REPORT_SIZE) {
+            fprintf(stderr, "WARNING: Read %zu bytes, expected %d bytes.\n", bytes_read, REPORT_SIZE);
+            exit(1);
+        }
+        if (!hid_set_feature(dev, buf, bytes_read)) return false;
+
         clear_buffer(buf, REPORT_SIZE);
     }
     clear_buffer(buf, REPORT_SIZE);
@@ -740,7 +768,7 @@ int main(int argc, char *argv[]) {
         sleep(1);
 
         while (file_size % REPORT_SIZE != 0)
-            file_size++; // Add padded zereos (if any) to file_size, since we are using a fixed 64 + 1 buffer, we need to take in consideration when the file doesnt fill the buffer.
+            file_size++; // Add padded zereos (if any) to file_size, we need to take in consideration when the file doesnt fill the buffer.
 
         if (((flash_jumploader && sanity_check_jumploader_firmware(file_size)) || (!flash_jumploader && sanity_check_firmware(file_size, offset))) && (flash(handle, offset, fp, file_size, no_offset_check))) {
             printf("Device succesfully flashed!\n");
