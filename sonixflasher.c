@@ -58,6 +58,7 @@
 #define SN248B_PID 0x7040
 #define SN248C_PID 0x7145
 #define SN248_PID 0x7900
+#define SN289_PID 0x7120
 #define SN299_PID 0x7140
 
 #define EVISION_VID 0x320F
@@ -87,6 +88,7 @@ static void print_vidpid_table() {
     printf("| SONIX SN24xB    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248B_PID);
     printf("| SONIX SN24xC    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248C_PID);
     printf("| SONIX SN24x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248_PID);
+    printf("| SONIX SN28x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN289_PID);
     printf("| SONIX SN29x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN299_PID);
     printf("+-----------------+------------+------------+\n");
 }
@@ -711,7 +713,7 @@ int main(int argc, char *argv[]) {
         printf("Device opened successfully...\n");
 
         // Check VID/PID
-        if (vid != SONIX_VID || (pid != SN248_PID && pid != SN248B_PID && pid != SN248C_PID && pid != SN268_PID && pid != SN299_PID)) {
+        if (vid != SONIX_VID || (pid != SN248_PID && pid != SN248B_PID && pid != SN248C_PID && pid != SN268_PID && pid != SN289_PID && pid != SN299_PID)) {
             if (vid == EVISION_VID && !reboot_requested) printf("Warning: eVision VID detected! You probably need to use the reboot option.\n");
             if (vid == APPLE_VID && !reboot_requested) printf("Warning: Apple VID detected! You probably need to use the reboot option.\n");
             printf("Warning: Flashing a non-sonix bootloader device, you are now on your own.\n");
