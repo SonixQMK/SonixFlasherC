@@ -30,7 +30,7 @@
 
 #define CMD_BASE 0x55AA
 #define CMD_GET_FW_VERSION 0x1
-#define CMD_COMPARE_ISP_PASSWORD 0x2
+#define CMD_COMPARE_CODE_OPTION 0x2
 #define CMD_SET_ENCRYPTION_ALGO 0x3
 #define CMD_ENABLE_ERASE 0x4
 #define CMD_ENABLE_PROGRAM 0x5
@@ -76,7 +76,7 @@ uint16_t        USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
 long            MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
 bool            flash_jumploader = false;
 bool            debug            = false;
-static uint16_t password         = 0x0000; // Initial ISP password
+static uint16_t code_option      = 0x0000; // Initial Code Option Table
 int             chip;
 uint16_t        cs_level;
 
@@ -273,13 +273,13 @@ int sn32_decode_chip(unsigned char *data) {
     }
 }
 
-bool sn32_check_isp_password(unsigned char *data) {
-    uint16_t received_password = (data[12] << 8) | data[13];
-    printf("Expected password: 0x%04X\n", password);
-    printf("Received password: 0x%04X\n", received_password);
-    if (received_password != password) {
-        printf("Updating password from 0x%04X to 0x%04X\n", password, received_password);
-        password = received_password;
+bool sn32_check_isp_code_option(unsigned char *data) {
+    uint16_t received_code_option = (data[12] << 8) | data[13];
+    printf("Expected Code Option Table: 0x%04X\n", code_option);
+    printf("Received Code Option Table: 0x%04X\n", received_code_option);
+    if (received_code_option != code_option) {
+        printf("Updating Code Option Table from 0x%04X to 0x%04X\n", code_option, received_code_option);
+        code_option = received_code_option;
         return false;
     }
     return true;
@@ -387,7 +387,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_GET_FW_VERSION;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, password);
+    write_buffer_16(buf + 3, code_option);
     uint8_t attempt_no = 1;
     while (!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
@@ -401,7 +401,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     chip = sn32_decode_chip(buf);
     if (chip == 0) return false;
     cs_level = sn32_get_cs_level(buf);
-    if (!sn32_check_isp_password(buf)) return false;
+    if (!sn32_check_isp_code_option(buf)) return false;
 
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
     bool init_fail   = !read_response_32(buf, 0, CMD_VERIFY(CMD_GET_FW_VERSION), &resp);
@@ -415,13 +415,13 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     return true;
 }
 
-bool protocol_blank_check(hid_device *dev) {
+bool protocol_code_option_check(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
-    // 02) Prepare for ISP password check
-    printf("Checking ISP password...\n"); // aka Blank Check
-    buf[0] = CMD_COMPARE_ISP_PASSWORD;
+    // 02) Prepare for Code Option Table check
+    printf("Checking Code Option Table...\n");
+    buf[0] = CMD_COMPARE_CODE_OPTION;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, password);
+    write_buffer_16(buf + 3, code_option);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
@@ -429,13 +429,13 @@ bool protocol_blank_check(hid_device *dev) {
 
 bool protocol_reset_cs(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
-    // 03) Reset ISP password
-    printf("Resetting ISP password...\n");
+    // 03) Reset Code Option Table
+    printf("Resetting Code Option Table...\n");
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_SET_ENCRYPTION_ALGO;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, password);
-    write_buffer_16(buf + 5, CS0); // WARNING THIS SETS CS
+    write_buffer_16(buf + 3, code_option);
+    write_buffer_16(buf + 5, CS0); // WARNING THIS SETS CS0
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
@@ -757,7 +757,7 @@ int main(int argc, char *argv[]) {
         }
         if (!ok) exit(1);
         sleep(3);
-        if (chip == SN240 || chip == SN290) ok = protocol_blank_check(handle); // 240 and 290
+        if (chip == SN240 || chip == SN290) ok = protocol_code_option_check(handle); // 240 and 290
         if (!ok) exit(1);
         sleep(1);
         if (cs_level != CS0) ok = protocol_reset_cs(handle);
