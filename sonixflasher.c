@@ -683,8 +683,20 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
     return file_size;
 }
 
+void cleanup(hid_device *handle) {
+    if (handle) hid_close(handle);
+    if (hid_exit() != 0) {
+        fprintf(stderr, "ERROR: Could not close the device.\n");
+    }
+}
+
+void error(hid_device *handle) {
+    cleanup(handle);
+    exit(1);
+}
+
 int main(int argc, char *argv[]) {
-    int         opt, opt_index, res;
+    int         opt, opt_index;
     hid_device *handle;
 
     uint16_t vid              = 0;
@@ -796,7 +808,10 @@ int main(int argc, char *argv[]) {
     printf("Firmware to flash: %s with offset 0x%04lx, device: 0x%04x/0x%04x.\n", file_name, offset, vid, pid);
 
     // Try to open the device
-    res = hid_init();
+    if (hid_init() < 0) {
+        fprintf(stderr, "ERROR: Could not initialize HID.\n");
+        exit(1);
+    }
     printf("\n");
     printf("\n");
     printf("Opening device...\n");
@@ -830,22 +845,22 @@ int main(int argc, char *argv[]) {
             ok = protocol_init(handle, reboot_requested, reboot_opt);
             attempt_no++;
         }
-        if (!ok) exit(1);
+        if (!ok) error(handle);
         sleep(3);
         if (chip == SN240 || chip == SN290) ok = protocol_code_option_check(handle); // 240 and 290
-        if (!ok) exit(1);
+        if (!ok) error(handle);
         sleep(1);
         if (cs_level != CS0) ok = protocol_reset_cs(handle);
-        if (!ok) exit(1);
+        if (!ok) error(handle);
         sleep(1);
         if (chip == SN240 || chip == SN290) ok = erase_flash(handle);
-        if (!ok) exit(1);
+        if (!ok) error(handle);
         sleep(1);
 
         long prepared_file_size = prepare_file_to_flash(file_name, flash_jumploader);
         if (prepared_file_size < 0) {
             fprintf(stderr, "ERROR: File preparation failed.\n");
-            exit(1);
+            error(handle);
         }
         if (((flash_jumploader && sanity_check_jumploader_firmware(prepared_file_size)) || (!flash_jumploader && sanity_check_firmware(prepared_file_size, offset))) && (flash(handle, offset, file_name, prepared_file_size, no_offset_check))) {
             printf("Device succesfully flashed!\n");
@@ -853,19 +868,13 @@ int main(int argc, char *argv[]) {
             protocol_reboot_user(handle);
         } else {
             fprintf(stderr, "ERROR: Could not flash the device. Try again.\n");
-            exit(1);
+            error(handle);
         }
     } else {
         fprintf(stderr, "ERROR: Could not open the device (Is the device connected?).\n");
-        exit(1);
+        error(handle);
     }
 
-    hid_close(handle);
-    res = hid_exit();
-
-    if (res < 0) {
-        fprintf(stderr, "ERROR: Could not close the device.\n");
-    }
-
+    cleanup(handle);
     exit(0);
 }
