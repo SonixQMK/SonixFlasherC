@@ -488,7 +488,13 @@ bool protocol_reboot_user(hid_device *dev) {
     return true;
 }
 
-bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip_offset_check) {
+bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bool skip_offset_check) {
+    FILE *firmware = fopen(file_name, "rb");
+    if (firmware == NULL) {
+        fprintf(stderr, "ERROR: Could not open firmware file (Does the file exist?).\n");
+        return false;
+    }
+
     unsigned char buf[REPORT_SIZE];
     uint32_t      resp = 0;
 
@@ -534,6 +540,7 @@ bool flash(hid_device *dev, long offset, FILE *firmware, long fw_size, bool skip
         clear_buffer(buf, REPORT_SIZE);
     }
     clear_buffer(buf, REPORT_SIZE);
+    fclose(firmware);
 
     // 07) Verify flash complete
     printf("\n");
@@ -590,6 +597,90 @@ bool sanity_check_jumploader_firmware(long fw_size) {
     }
 
     return true;
+}
+
+long get_file_size(FILE *fp) {
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fprintf(stderr, "ERROR: Could not read EOF.\n");
+        return -1;
+    }
+
+    long file_size = ftell(fp);
+    if (file_size == -1L) {
+        fprintf(stderr, "ERROR: File size calculation failed.\n");
+        return -1;
+    }
+
+    // Reset file position to the beginning
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fprintf(stderr, "ERROR: File size cleanup failed.\n");
+        return -1;
+    }
+
+    return file_size;
+}
+
+long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
+    FILE *fp = fopen(file_name, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "ERROR: Could not open file (Does the file exist?).\n");
+        return -1;
+    }
+
+    long file_size = get_file_size(fp);
+    if (file_size == -1L) {
+        fclose(fp);
+        return -1;
+    }
+
+    if (file_size == 0) {
+        fprintf(stderr, "ERROR: File is empty.\n");
+        fclose(fp);
+        return -1;
+    }
+
+    printf("File size: %ld bytes\n", file_size);
+
+    // If jumploader is not 0x200 in length, add padded zeroes to file
+    if (flash_jumploader && file_size < QMK_OFFSET_DEFAULT) {
+        printf("Warning: jumploader binary doesn't have a size of: 0x%04x bytes.\n", QMK_OFFSET_DEFAULT);
+        printf("Truncating jumploader binary to: 0x%04x.\n", QMK_OFFSET_DEFAULT);
+
+        fclose(fp);
+        if (truncate(file_name, QMK_OFFSET_DEFAULT) != 0) {
+            fprintf(stderr, "ERROR: Could not truncate file.\n");
+            return -1;
+        }
+
+        // Reopen the file
+        fp = fopen(file_name, "rb");
+        if (fp == NULL) {
+            fprintf(stderr, "ERROR: Could not open file after truncation.\n");
+            return -1;
+        }
+
+        // Recalculate file size
+        file_size = get_file_size(fp);
+        if (file_size == -1L) {
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    // Adjust file size to fit in the HID report
+    if (file_size % REPORT_SIZE != 0) {
+        printf("File size must be adjusted to fit in the HID report.\n");
+        long padded_file_size = file_size;
+        printf("File size before padding: %ld bytes\n", padded_file_size);
+        while (padded_file_size % REPORT_SIZE != 0) {
+            padded_file_size++;
+        }
+        printf("File size after padding: %ld bytes\n", padded_file_size);
+        file_size = padded_file_size;
+    }
+
+    fclose(fp);
+    return file_size;
 }
 
 int main(int argc, char *argv[]) {
@@ -704,40 +795,6 @@ int main(int argc, char *argv[]) {
 
     printf("Firmware to flash: %s with offset 0x%04lx, device: 0x%04x/0x%04x.\n", file_name, offset, vid, pid);
 
-    FILE *fp = fopen(file_name, "rb");
-
-    if (fp == NULL) {
-        fprintf(stderr, "ERROR: Could not open file (Does the file exist?).\n");
-        fclose(fp);
-        exit(1);
-    }
-
-    // Get file size
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    // if jumploader is not 0x200 in length, add padded zeroes to file
-    if (flash_jumploader && file_size < QMK_OFFSET_DEFAULT) {
-        printf("Warning: jumploader binary doesnt have a size of: 0x%04x bytes.\n", QMK_OFFSET_DEFAULT);
-        printf("Truncating jumploader binary to: 0x%04x.\n", QMK_OFFSET_DEFAULT);
-
-        // Close device before truncating it
-        fclose(fp);
-        if (truncate(file_name, QMK_OFFSET_DEFAULT) != 0) {
-            fprintf(stderr, "ERROR: Could not truncate file.\n");
-            exit(1);
-        }
-
-        // Try open the file again.
-        fp = fopen(file_name, "rb");
-        if (fp == NULL) {
-            fprintf(stderr, "ERROR: Could not open file.\n");
-            fclose(fp);
-            exit(1);
-        }
-    }
-
     // Try to open the device
     res = hid_init();
     printf("\n");
@@ -785,10 +842,12 @@ int main(int argc, char *argv[]) {
         if (!ok) exit(1);
         sleep(1);
 
-        while (file_size % REPORT_SIZE != 0)
-            file_size++; // Add padded zereos (if any) to file_size, we need to take in consideration when the file doesnt fill the buffer.
-
-        if (((flash_jumploader && sanity_check_jumploader_firmware(file_size)) || (!flash_jumploader && sanity_check_firmware(file_size, offset))) && (flash(handle, offset, fp, file_size, no_offset_check))) {
+        long prepared_file_size = prepare_file_to_flash(file_name, flash_jumploader);
+        if (prepared_file_size < 0) {
+            fprintf(stderr, "ERROR: File preparation failed.\n");
+            exit(1);
+        }
+        if (((flash_jumploader && sanity_check_jumploader_firmware(prepared_file_size)) || (!flash_jumploader && sanity_check_firmware(prepared_file_size, offset))) && (flash(handle, offset, file_name, prepared_file_size, no_offset_check))) {
             printf("Device succesfully flashed!\n");
             sleep(3);
             protocol_reboot_user(handle);
@@ -801,7 +860,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fclose(fp);
     hid_close(handle);
     res = hid_exit();
 
