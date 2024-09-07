@@ -66,6 +66,7 @@
 #define APPLE_VID 0x05ac
 
 #define MAX_ATTEMPTS 5
+#define RETRY_DELAY_MS 100
 
 #define PROJECT_NAME "sonixflasher"
 #define PROJECT_VER "2.0.2"
@@ -314,28 +315,46 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
     clear_buffer(data, sizeof(data));
     int res = hid_get_feature_report(dev, data, REPORT_LENGTH);
 
-    if (res == REPORT_LENGTH) {
-        // Shift the data buffer to remove the first byte
-        memmove(data, data + 1, res - 1);
+    uint8_t attempt_no = 1;
+    while (attempt_no <= MAX_ATTEMPTS) {
+        clear_buffer(data, sizeof(data));
 
-        if (debug) {
-            printf("Received payload...\n");
-            print_data(data, res - 1);
-        }
+        // Attempt to get the feature report
+        res = hid_get_feature_report(dev, data, REPORT_LENGTH);
 
-        // Check the status directly in the data buffer
-        unsigned int status = *((unsigned int *)(data + 4));
-        if (status != CMD_OK) {
-            fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02X.\n", status, CMD_OK, command & 0xFF);
+        if (res == REPORT_LENGTH) {
+            // Shift the data buffer to remove the first byte
+            memmove(data, data + 1, res - 1);
+
+            if (debug) {
+                printf("Received payload...\n");
+                print_data(data, res - 1);
+            }
+
+            // Check the status directly in the data buffer
+            unsigned int status = *((unsigned int *)(data + 4));
+            if (status != CMD_OK) {
+                fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02X.\n", status, CMD_OK, command & 0xFF);
+                return false;
+            }
+
+            // Success
+            return true;
+        } else if (res < 0) {
+            // Error condition, such as abort pipe
+            fprintf(stderr, "ERROR: Device busy or failed to get feature report, retrying...\n");
+            attempt_no++;
+            usleep(RETRY_DELAY_MS * 1000); // Delay before retrying
+        } else {
+            // Incorrect response length
+            fprintf(stderr, "ERROR: Invalid response length for command 0x%02X: got %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
             return false;
         }
-        // Success
-        return true;
-
-    } else {
-        fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02X: got response of length %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
-        return false;
     }
+
+    // After retries failed
+    fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02X after %d retries.\n", command & 0xFF, attempt_no);
+    return false;
 }
 
 bool send_magic_command(hid_device *dev, const uint32_t *command) {
