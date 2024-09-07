@@ -1,6 +1,6 @@
 # Sonix Flasher C
 
-A CLI-based Flasher for Sonix 24x/26x MCUs.
+A CLI-based Flasher for Sonix SN32F2xx MCUs.
 
 ## Description
 
@@ -39,6 +39,50 @@ make sonixflasher
 ./sonixflasher
 ```
 
+#### Command List:
+
+- `--vidpid -v`      Set VID and PID for the device to flash.
+- `--offset -o`      Set flashing offset (default: 0).
+- `--file -f`        Binary of the firmware to flash (*.bin extension).
+- `--jumploader -j`  Define if flashing a jumploader.
+- `--reboot -r`      Request bootloader reboot in OEM firmware (options: evision, hfd).
+- `--debug -d`       Enable debug mode.
+- `--list-vidpid -l` Display supported VID/PID pairs.
+- `--nooffset -k`    Disable offset checks.
+- `--version -V`     Print version information.
+- `--help -h`        Show this help message.
+
+#### ISP Bootloader Mode Defaults:
+
++-----------------+--------+--------+
+|     Device      |  VID   |  PID   |
++-----------------+--------+--------+
+| SONIX SN32F26x  | 0x0C45 | 0x7010 |
+| SONIX SN32F24xB | 0x0C45 | 0x7040 |
+| SONIX SN32F24xC | 0x0C45 | 0x7145 |
+| SONIX SN32F24x  | 0x0C45 | 0x7900 |
+| SONIX SN32F28x  | 0x0C45 | 0x7120 |
+| SONIX SN32F29x  | 0x0C45 | 0x7140 |
++-----------------+--------+--------+
+
+Notice that some devices support flashing while booted. In that case, use
+```
+--reboot
+```
+to expose the ISP mode
+
+## Usage Examples
+
+- **Flash jumploader to device with VID/PID 0x0c45/0x7040:**
+
+  ```
+  sonixflasher --vidpid 0c45/7040 --file fw.bin -j
+  ```
+- **Flash firmware to device with VID/PID 0x0c45/0x7040 and offset 0x200:**
+
+  ```
+  sonixflasher --vidpid 0c45/7040 --file fw.bin -o 0x200
+  ```
 
 ## License
 

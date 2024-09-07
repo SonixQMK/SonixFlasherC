@@ -86,12 +86,12 @@ static void print_vidpid_table() {
     printf("+-----------------+------------+------------+\n");
     printf("|      Device     |    VID     |    PID     |\n");
     printf("+-----------------+------------+------------+\n");
-    printf("| SONIX SN26x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN268_PID);
-    printf("| SONIX SN24xB    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248B_PID);
-    printf("| SONIX SN24xC    | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248C_PID);
-    printf("| SONIX SN24x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248_PID);
-    printf("| SONIX SN28x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN289_PID);
-    printf("| SONIX SN29x     | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN299_PID);
+    printf("| SONIX SN32F26x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN268_PID);
+    printf("| SONIX SN32F24xB | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248B_PID);
+    printf("| SONIX SN32F24xC | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248C_PID);
+    printf("| SONIX SN32F24x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248_PID);
+    printf("| SONIX SN32F28x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN289_PID);
+    printf("| SONIX SN32F29x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN299_PID);
     printf("+-----------------+------------+------------+\n");
 }
 
