@@ -37,6 +37,9 @@ jobs:
   
   build-mac:
     runs-on: macos-latest
+    env:
+      CPATH: /opt/homebrew/include
+      LIBRARY_PATH: /opt/homebrew/lib
 
     steps:
     - uses: actions/checkout@v3
