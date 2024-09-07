@@ -387,7 +387,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_GET_FW_VERSION;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, code_option);
+    write_buffer_16(buf + 4, code_option);
     uint8_t attempt_no = 1;
     while (!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
     {
@@ -409,7 +409,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
         if (oem_reboot && reboot_fail) {
             fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, 0);
         } else
-            fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_GET_FW_VERSION);
+            fprintf(stderr, "ERROR: Failed to initialize: response cmd is 0x%08x, expected 0x%08x.\n", resp, CMD_VERIFY(CMD_GET_FW_VERSION));
         return false;
     }
     return true;
@@ -422,7 +422,7 @@ bool protocol_code_option_check(hid_device *dev) {
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_COMPARE_CODE_OPTION;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, code_option);
+    write_buffer_16(buf + 4, code_option);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
@@ -435,8 +435,8 @@ bool protocol_reset_cs(hid_device *dev) {
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_SET_ENCRYPTION_ALGO;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 3, code_option);
-    write_buffer_16(buf + 5, CS0); // WARNING THIS SETS CS0
+    write_buffer_16(buf + 4, code_option);
+    write_buffer_16(buf + 6, CS0); // WARNING THIS SETS CS0
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
