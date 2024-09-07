@@ -166,7 +166,6 @@ void print_data(const unsigned char *data, int length) {
         printf("%02x ", data[i]);
     }
     printf("\n");
-    printf("\n");
 }
 
 bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
@@ -176,6 +175,7 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
     }
 
     if (debug) {
+        printf("\n");
         printf("Sending payload...\n");
         print_data(data, length);
     }
@@ -194,13 +194,13 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
 
         // Send the feature report using the temporary buffer
         if (hid_send_feature_report(dev, temp_buf, length + 1) < 0) {
-            fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", data[0], hid_error(dev));
+            fprintf(stderr, "ERROR: Error while writing command 0x%02x! Reason: %ls\n", data[0], hid_error(dev));
             return false;
         }
     } else {
         // Send the report as is
         if (hid_send_feature_report(dev, data, length) < 0) {
-            fprintf(stderr, "ERROR: Error while writing command %0x2X! Reason: %ls\n", data[0], hid_error(dev));
+            fprintf(stderr, "ERROR: Error while writing command 0x%02x! Reason: %ls\n", data[0], hid_error(dev));
             return false;
         }
     }
@@ -210,12 +210,13 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
 int sn32_decode_chip(unsigned char *data) {
     if (data[8] == 32) {
         printf("Sonix SN32 Detected.\n");
-        printf("Checking variant...\n");
+        printf("\n");
+        printf("Checking variant... ");
         sleep(2);
         int sn32_variant;
         switch (data[9]) {
             case SN240:
-                printf("240 Detected.\n");
+                printf("240 Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -223,7 +224,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN240;
                 break;
             case SN260:
-                printf("260 Detected.\n");
+                printf("260 Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F260;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F260;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -231,7 +232,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN260;
                 break;
             case SN240B:
-                printf("240B Detected.\n");
+                printf("240B Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240B;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240B;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -239,7 +240,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN240B;
                 break;
             case SN280:
-                printf("280 Detected.\n");
+                printf("280 Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F280;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F280;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -247,7 +248,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN280;
                 break;
             case SN290:
-                printf("290 Detected.\n");
+                printf("290 Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F290;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F290;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -255,7 +256,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN290;
                 break;
             case SN240C:
-                printf("240C Detected. \n");
+                printf("240C Detected!\n");
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240C;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240C;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
@@ -263,6 +264,7 @@ int sn32_decode_chip(unsigned char *data) {
                 sn32_variant   = SN240C;
                 break;
             default:
+                printf("\n");
                 fprintf(stderr, "ERROR: Unsupported bootloader version: %d, we don't support this chip.\n", data[9]);
                 sn32_variant = 0;
                 break;
@@ -305,7 +307,7 @@ uint16_t sn32_get_cs_level(unsigned char *data) {
                 printf("Current Security level: CS3. \n");
                 break;
             default:
-                fprintf(stderr, "ERROR: Unsupported Security level: %04x, we don't support this chip.\n", combined_cs);
+                fprintf(stderr, "ERROR: Unsupported Security level: 0x%04X, we don't support this chip.\n", combined_cs);
                 break;
         }
     }
@@ -328,6 +330,7 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
             memmove(data, data + 1, res - 1);
 
             if (debug) {
+                printf("\n");
                 printf("Received payload...\n");
                 print_data(data, res - 1);
             }
@@ -335,7 +338,7 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
             // Check the status directly in the data buffer
             unsigned int status = *((unsigned int *)(data + 4));
             if (status != CMD_OK) {
-                fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02X.\n", status, CMD_OK, command & 0xFF);
+                fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02x.\n", status, CMD_OK, command & 0xFF);
                 return false;
             }
 
@@ -348,13 +351,13 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
             usleep(RETRY_DELAY_MS * 1000); // Delay before retrying
         } else {
             // Incorrect response length
-            fprintf(stderr, "ERROR: Invalid response length for command 0x%02X: got %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
+            fprintf(stderr, "ERROR: Invalid response length for command 0x%02x: got %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
             return false;
         }
     }
 
     // After retries failed
-    fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02X after %d retries.\n", command & 0xFF, attempt_no);
+    fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02x after %d retries.\n", command & 0xFF, attempt_no);
     return false;
 }
 
@@ -402,6 +405,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     }
 
     // 01) Initialize
+    printf("\n");
     printf("Fetching flash version...\n");
     sleep(2);
     clear_buffer(buf, REPORT_SIZE);
@@ -438,6 +442,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
 bool protocol_code_option_check(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 02) Prepare for Code Option Table check
+    printf("\n");
     printf("Checking Code Option Table...\n");
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_COMPARE_CODE_OPTION;
@@ -451,7 +456,9 @@ bool protocol_code_option_check(hid_device *dev) {
 bool protocol_reset_cs(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 03) Reset Code Option Table
+    printf("\n");
     printf("Resetting Code Option Table...\n");
+    printf("Setting Code Option Table 0x%04x with CS 0x%04X.\n", code_option, CS0);
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_SET_ENCRYPTION_ALGO;
     write_buffer_16(buf + 1, CMD_BASE);
@@ -466,6 +473,7 @@ bool protocol_reset_cs(hid_device *dev) {
 bool erase_flash(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 04) Erase flash
+    printf("\n");
     printf("Erasing flash...\n");
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_ENABLE_ERASE;
@@ -480,6 +488,7 @@ bool erase_flash(hid_device *dev) {
 bool protocol_reboot_user(hid_device *dev) {
     unsigned char buf[REPORT_SIZE];
     // 08) Reboot to User Mode
+    printf("\n");
     printf("Flashing done. Rebooting.\n");
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_RETURN_USER_MODE;
@@ -639,7 +648,7 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
         fclose(fp);
         return -1;
     }
-
+    printf("\n");
     printf("File size: %ld bytes\n", file_size);
 
     // If jumploader is not 0x200 in length, add padded zeroes to file
