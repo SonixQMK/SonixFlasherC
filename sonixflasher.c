@@ -80,6 +80,7 @@
 #define PROJECT_NAME "sonixflasher"
 #define PROJECT_VER "2.0.3"
 
+uint16_t           BLANK_CHECKSUM   = 0x0000;
 uint16_t           CS0              = CS0_0;
 uint16_t           USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
 uint16_t           USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
@@ -91,7 +92,7 @@ int                chip;
 int                cs_level;
 const unsigned int known_isp_pids[] = {SN229_PID, SN239_PID, SN248B_PID, SN248C_PID, SN268_PID, SN289_PID, SN299_PID};
 
-static void        print_vidpid_table() {
+static void print_vidpid_table() {
     printf("Supported VID/PID pairs:\n");
     printf("+-----------------+------------+------------+\n");
     printf("|      Device     |    VID     |    PID     |\n");
@@ -148,6 +149,15 @@ void print_buffer(unsigned char *data, size_t length) {
     for (int i = 0; i < length; i++)
         printf("%02x", data[i]);
     printf("\n");
+}
+
+bool read_response_16(unsigned char *data, uint32_t offset, uint16_t expected_result, uint16_t *resp) {
+    uint16_t r = *resp;
+
+    memcpy(&r, data + offset, sizeof(uint16_t));
+
+    *resp = r;
+    return r == expected_result;
 }
 
 bool read_response_32(unsigned char *data, uint32_t offset, uint32_t expected_result, uint32_t *resp) {
@@ -246,6 +256,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F220;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                         CS0            = CS0_1;
+                        BLANK_CHECKSUM = 0xe000;
                         sn32_family    = SN240;
                         break;
                     case 2:
@@ -254,6 +265,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F230;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                         CS0            = CS0_1;
+                        BLANK_CHECKSUM = 0xc000;
                         sn32_family    = SN240;
                         break;
                     case 3:
@@ -262,6 +274,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                         CS0            = CS0_1;
+                        BLANK_CHECKSUM = 0x8000;
                         sn32_family    = SN240;
                         break;
                     default:
@@ -277,6 +290,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F260;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = CS0_0;
+                BLANK_CHECKSUM = 0x8000;
                 sn32_family    = SN260;
                 break;
             case SN240B:
@@ -285,6 +299,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240B;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = CS0_0;
+                BLANK_CHECKSUM = 0x8000;
                 sn32_family    = SN240B;
                 break;
             case SN280:
@@ -293,6 +308,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F280;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = CS0_1;
+                BLANK_CHECKSUM = 0x0000;
                 sn32_family    = SN280;
                 break;
             case SN290:
@@ -301,6 +317,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F290;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = CS0_1;
+                BLANK_CHECKSUM = 0x0000;
                 sn32_family    = SN290;
                 break;
             case SN240C:
@@ -309,6 +326,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240C;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = CS0_1;
+                BLANK_CHECKSUM = 0x0000;
                 sn32_family    = SN240C;
                 break;
             default:
@@ -526,8 +544,9 @@ bool protocol_code_option_set(hid_device *dev, uint16_t code_option, uint16_t cs
     return true;
 }
 
-bool erase_flash(hid_device *dev, uint16_t page_start, uint16_t page_end) {
+bool erase_flash(hid_device *dev, uint16_t page_start, uint16_t page_end, uint16_t blank_checksum) {
     unsigned char buf[REPORT_SIZE];
+    uint16_t      resp = 0;
     // 04) Erase flash
     printf("\n");
     printf("Erasing flash from page %u to page %u...\n", page_start, page_end);
@@ -538,8 +557,15 @@ bool erase_flash(hid_device *dev, uint16_t page_start, uint16_t page_end) {
     write_buffer_16(buf + 8, page_end);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_ERASE)) return false;
+    if (read_response_16(buf, 8, blank_checksum, &resp)) {
+        printf("Flash erase verified. \n");
+        return true;
+    } else {
+        fprintf(stderr, "ERROR: Failed to verify flash erase: response is 0x%04x, expected 0x%04x.\n", resp, blank_checksum);
+        return false;
+    }
     clear_buffer(buf, REPORT_SIZE);
-    return true;
+    return false;
 }
 
 bool protocol_reboot_user(hid_device *dev) {
@@ -923,7 +949,7 @@ int main(int argc, char *argv[]) {
         }
         if (!ok) error(handle);
         sleep(1);
-        if (chip != SN240B && chip != SN260) ok = erase_flash(handle, 0, USER_ROM_PAGES);
+        if (chip != SN240B && chip != SN260) ok = erase_flash(handle, 0, USER_ROM_PAGES, BLANK_CHECKSUM);
         if (!ok) error(handle);
         sleep(1);
 
