@@ -62,10 +62,12 @@
 #define CS3 0x55AA
 
 #define SONIX_VID 0x0c45
-#define SN268_PID 0x7010
+#define SN229_PID 0x7900
+#define SN239_PID SN229_PID
+#define SN249_PID SN229_PID
 #define SN248B_PID 0x7040
 #define SN248C_PID 0x7145
-#define SN248_PID 0x7900
+#define SN268_PID 0x7010
 #define SN289_PID 0x7120
 #define SN299_PID 0x7140
 
@@ -78,25 +80,28 @@
 #define PROJECT_NAME "sonixflasher"
 #define PROJECT_VER "2.0.3"
 
-uint16_t        CS0              = CS0_0;
-uint16_t        USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
-uint16_t        USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
-long            MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
-bool            flash_jumploader = false;
-bool            debug            = false;
-static uint16_t code_option      = 0x0000; // Initial Code Option Table
-int             chip;
-int             cs_level;
+uint16_t           CS0              = CS0_0;
+uint16_t           USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
+uint16_t           USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
+long               MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
+bool               flash_jumploader = false;
+bool               debug            = false;
+static uint16_t    code_option      = 0x0000; // Initial Code Option Table
+int                chip;
+int                cs_level;
+const unsigned int known_isp_pids[] = {SN229_PID, SN239_PID, SN248B_PID, SN248C_PID, SN268_PID, SN289_PID, SN299_PID};
 
-static void print_vidpid_table() {
+static void        print_vidpid_table() {
     printf("Supported VID/PID pairs:\n");
     printf("+-----------------+------------+------------+\n");
     printf("|      Device     |    VID     |    PID     |\n");
     printf("+-----------------+------------+------------+\n");
-    printf("| SONIX SN32F26x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN268_PID);
+    printf("| SONIX SN32F22x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN229_PID);
+    printf("| SONIX SN32F23x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN239_PID);
+    printf("| SONIX SN32F24x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN249_PID);
     printf("| SONIX SN32F24xB | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248B_PID);
     printf("| SONIX SN32F24xC | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248C_PID);
-    printf("| SONIX SN32F24x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN248_PID);
+    printf("| SONIX SN32F26x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN268_PID);
     printf("| SONIX SN32F28x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN289_PID);
     printf("| SONIX SN32F29x  | 0x%04X     | 0x%04X     |\n", SONIX_VID, SN299_PID);
     printf("+-----------------+------------+------------+\n");
@@ -173,6 +178,16 @@ void print_data(const unsigned char *data, int length) {
         printf("%02x ", data[i]);
     }
     printf("\n");
+}
+
+bool is_known_isp_pid(unsigned int pid) {
+    size_t num_known_pids = sizeof(known_isp_pids) / sizeof(known_isp_pids[0]);
+    for (size_t i = 0; i < num_known_pids; ++i) {
+        if (pid == known_isp_pids[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
@@ -883,7 +898,7 @@ int main(int argc, char *argv[]) {
         printf("Device opened successfully...\n");
 
         // Check VID/PID
-        if (vid != SONIX_VID || (pid != SN248_PID && pid != SN248B_PID && pid != SN248C_PID && pid != SN268_PID && pid != SN289_PID && pid != SN299_PID)) {
+        if (vid != SONIX_VID || !is_known_isp_pid(pid)) {
             if (vid == EVISION_VID && !reboot_requested) printf("Warning: eVision VID detected! You probably need to use the reboot option.\n");
             if (vid == APPLE_VID && !reboot_requested) printf("Warning: Apple VID detected! You probably need to use the reboot option.\n");
             printf("Warning: Flashing a non-sonix bootloader device, you are now on your own.\n");
