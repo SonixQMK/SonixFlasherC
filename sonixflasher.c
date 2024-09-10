@@ -12,6 +12,8 @@
 #define REPORT_SIZE 64
 #define REPORT_LENGTH (REPORT_SIZE + 1)
 #define USER_ROM_SIZE_SN32F260 30   // in KB
+#define USER_ROM_SIZE_SN32F220 16   // in KB
+#define USER_ROM_SIZE_SN32F230 32   // in KB
 #define USER_ROM_SIZE_SN32F240 64   // in KB
 #define USER_ROM_SIZE_SN32F240B 64  // in KB
 #define USER_ROM_SIZE_SN32F240C 128 // in KB
@@ -20,6 +22,8 @@
 #define USER_ROM_SIZE_KB(x) ((x) * 1024)
 
 #define USER_ROM_PAGES_SN32F260 480
+#define USER_ROM_PAGES_SN32F220 16
+#define USER_ROM_PAGES_SN32F230 32
 #define USER_ROM_PAGES_SN32F240 64
 #define USER_ROM_PAGES_SN32F240B 1024
 #define USER_ROM_PAGES_SN32F240C 128
@@ -208,20 +212,46 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
     return true;
 }
 int sn32_decode_chip(unsigned char *data) {
+    // data[8-11] holds the bootloader version
     if (data[8] == 32) {
         printf("Sonix SN32 Detected.\n");
         printf("\n");
         printf("Checking variant... ");
         sleep(2);
-        int sn32_variant;
+        int sn32_family;
         switch (data[9]) {
             case SN240:
-                printf("240 Detected!\n");
-                USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240;
-                USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
-                MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0xFFFF;
-                sn32_variant   = SN240;
+                switch (data[11]) {
+                    case 1:
+                        printf("220 Detected!\n");
+                        USER_ROM_SIZE  = USER_ROM_SIZE_SN32F220;
+                        USER_ROM_PAGES = USER_ROM_PAGES_SN32F220;
+                        MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                        CS0            = 0xFFFF;
+                        sn32_family    = SN240;
+                        break;
+                    case 2:
+                        printf("230 Detected!\n");
+                        USER_ROM_SIZE  = USER_ROM_SIZE_SN32F230;
+                        USER_ROM_PAGES = USER_ROM_PAGES_SN32F230;
+                        MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                        CS0            = 0xFFFF;
+                        sn32_family    = SN240;
+                        break;
+                    case 3:
+                        printf("240 Detected!\n");
+                        USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240;
+                        USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
+                        MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
+                        CS0            = 0xFFFF;
+                        sn32_family    = SN240;
+                        break;
+                    default:
+                        printf("\n");
+                        fprintf(stderr, "ERROR: Unsupported 2xx variant: %d.%d.%d, we don't support this chip.\n", data[9], data[10], data[11]);
+                        sn32_family = 0;
+                        break;
+                }
                 break;
             case SN260:
                 printf("260 Detected!\n");
@@ -229,7 +259,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F260;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = 0;
-                sn32_variant   = SN260;
+                sn32_family    = SN260;
                 break;
             case SN240B:
                 printf("240B Detected!\n");
@@ -237,7 +267,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240B;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = 0;
-                sn32_variant   = SN240B;
+                sn32_family    = SN240B;
                 break;
             case SN280:
                 printf("280 Detected!\n");
@@ -245,7 +275,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F280;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = 0xFFFF;
-                sn32_variant   = SN280;
+                sn32_family    = SN280;
                 break;
             case SN290:
                 printf("290 Detected!\n");
@@ -253,7 +283,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F290;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = 0xFFFF;
-                sn32_variant   = SN290;
+                sn32_family    = SN290;
                 break;
             case SN240C:
                 printf("240C Detected!\n");
@@ -261,16 +291,16 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240C;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
                 CS0            = 0xFFFF;
-                sn32_variant   = SN240C;
+                sn32_family    = SN240C;
                 break;
             default:
                 printf("\n");
-                fprintf(stderr, "ERROR: Unsupported bootloader version: %d, we don't support this chip.\n", data[9]);
-                sn32_variant = 0;
+                fprintf(stderr, "ERROR: Unsupported bootloader version: %d.%d.%d, we don't support this chip.\n", data[9], data[10], data[11]);
+                sn32_family = 0;
                 break;
         }
 
-        return sn32_variant;
+        return sn32_family;
     } else {
         fprintf(stderr, "ERROR: Unsupported family version: %d, we don't support this chip.\n", data[8]);
         return 0;
