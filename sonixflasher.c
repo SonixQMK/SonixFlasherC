@@ -349,13 +349,13 @@ int sn32_get_code_security(unsigned char *data) {
     return cs_level;
 }
 
-bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
-    clear_buffer(data, sizeof(data));
+bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uint32_t command) {
+    clear_buffer(data, data_size);
     int res = hid_get_feature_report(dev, data, REPORT_LENGTH);
 
     uint8_t attempt_no = 1;
     while (attempt_no <= MAX_ATTEMPTS) {
-        clear_buffer(data, sizeof(data));
+        clear_buffer(data, data_size);
 
         // Attempt to get the feature report
         res = hid_get_feature_report(dev, data, REPORT_LENGTH);
@@ -456,7 +456,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     }
     if (attempt_no > MAX_ATTEMPTS) return false;
 
-    if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
+    if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_GET_FW_VERSION)) return false;
     chip = sn32_decode_chip(buf);
     if (chip == 0) return false;
     cs_level = sn32_get_code_security(buf);
@@ -500,7 +500,7 @@ bool protocol_code_option_set(hid_device *dev, uint16_t code_option, uint16_t cs
     write_buffer_16(buf + 4, code_option);
     write_buffer_16(buf + 6, cs_value);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
-    if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
+    if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
 }
@@ -516,7 +516,7 @@ bool erase_flash(hid_device *dev, uint16_t page_start, uint16_t page_end) {
     write_buffer_16(buf + 4, page_start);
     write_buffer_16(buf + 8, page_end);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
-    if (!hid_get_feature(dev, buf, CMD_ENABLE_ERASE)) return false;
+    if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_ERASE)) return false;
     clear_buffer(buf, REPORT_SIZE);
     return true;
 }
@@ -569,7 +569,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     write_buffer_32(buf + 8, (uint32_t)(fw_size / REPORT_SIZE));
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
 
-    if (!hid_get_feature(dev, buf, CMD_ENABLE_PROGRAM)) return false;
+    if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_PROGRAM)) return false;
     clear_buffer(buf, REPORT_SIZE);
 
     // 06) Flash
@@ -591,7 +591,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     // 07) Verify flash complete
     printf("\n");
     printf("Verifying flash completion...\n");
-    if (!hid_get_feature(dev, buf, CMD_ENABLE_PROGRAM)) return false;
+    if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_PROGRAM)) return false;
     if (read_response_32(buf, (sizeof(buf) - sizeof(VALID_FW)), VALID_FW, &resp)) {
         printf("Flash completion verified. \n");
         return true;
