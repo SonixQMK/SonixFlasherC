@@ -506,15 +506,16 @@ bool protocol_reset_cs(hid_device *dev) {
     return true;
 }
 
-bool erase_flash(hid_device *dev) {
+bool erase_flash(hid_device *dev, uint16_t page_start, uint16_t page_end) {
     unsigned char buf[REPORT_SIZE];
     // 04) Erase flash
     printf("\n");
-    printf("Erasing flash...\n");
+    printf("Erasing flash from page %u to page %u...\n", page_start, page_end);
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_ENABLE_ERASE;
     write_buffer_16(buf + 1, CMD_BASE);
-    write_buffer_16(buf + 8, USER_ROM_PAGES);
+    write_buffer_16(buf + 4, page_start);
+    write_buffer_16(buf + 8, page_end);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_ENABLE_ERASE)) return false;
     clear_buffer(buf, REPORT_SIZE);
@@ -899,7 +900,7 @@ int main(int argc, char *argv[]) {
         if (cs_level != 0) ok = protocol_reset_cs(handle);
         if (!ok) error(handle);
         sleep(1);
-        if (chip != SN240B && chip != SN260) ok = erase_flash(handle);
+        if (chip != SN240B && chip != SN260) ok = erase_flash(handle, 0, USER_ROM_PAGES);
         if (!ok) error(handle);
         sleep(1);
 
