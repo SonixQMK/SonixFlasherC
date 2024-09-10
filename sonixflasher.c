@@ -489,17 +489,16 @@ bool protocol_code_option_check(hid_device *dev) {
     return true;
 }
 
-bool protocol_reset_cs(hid_device *dev) {
+bool protocol_code_option_set(hid_device *dev, uint16_t code_option, uint16_t cs_value) {
     unsigned char buf[REPORT_SIZE];
-    // 03) Reset Code Option Table
+    // 03) Set Code Option Table
     printf("\n");
-    printf("Resetting Code Option Table...\n");
-    printf("Setting Code Option Table 0x%04x with CS 0x%04X.\n", code_option, CS0);
+    printf("Setting Code Option Table 0x%04x with Code Security value 0x%04X...\n", code_option, cs_value);
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_SET_ENCRYPTION_ALGO;
     write_buffer_16(buf + 1, CMD_BASE);
     write_buffer_16(buf + 4, code_option);
-    write_buffer_16(buf + 6, CS0); // WARNING THIS SETS CS0
+    write_buffer_16(buf + 6, cs_value);
     if (!hid_set_feature(dev, buf, REPORT_SIZE)) return false;
     if (!hid_get_feature(dev, buf, CMD_SET_ENCRYPTION_ALGO)) return false;
     clear_buffer(buf, REPORT_SIZE);
@@ -897,7 +896,10 @@ int main(int argc, char *argv[]) {
         if (chip != SN240B && chip != SN260) ok = protocol_code_option_check(handle);
         if (!ok) error(handle);
         sleep(1);
-        if (cs_level != 0) ok = protocol_reset_cs(handle);
+        if (cs_level != 0) {
+            printf("Resetting Code Security from CS%d to CS%d...\n", cs_level, 0);
+            ok = protocol_code_option_set(handle, code_option, CS0);
+        }
         if (!ok) error(handle);
         sleep(1);
         if (chip != SN240B && chip != SN260) ok = erase_flash(handle, 0, USER_ROM_PAGES);
