@@ -177,6 +177,22 @@ void write_buffer_16(unsigned char *data, uint16_t cmd) {
     memcpy(data, &cmd, 2);
 }
 
+uint16_t checksum16(const unsigned char *data, size_t size) {
+    uint16_t sum = 0;
+    size_t   i;
+
+    for (i = 0; i + 1 < size; i += 2) {
+        uint16_t value = data[i] | (data[i + 1] << 8);
+        sum += value;
+    }
+
+    if (i < size) {
+        sum += data[i];
+    }
+
+    return sum;
+}
+
 void print_data(const unsigned char *data, int length) {
     for (int i = 0; i < length; i++) {
         if (i % 16 == 0) {
@@ -622,16 +638,19 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     // 06) Flash
     printf("Flashing device, please wait...\n");
 
-    size_t bytes_read = 0;
+    size_t   bytes_read = 0;
+    uint16_t checksum   = 0;
     clear_buffer(buf, REPORT_SIZE);
     while ((bytes_read = fread(buf, 1, REPORT_SIZE, firmware)) > 0) {
         if (bytes_read < REPORT_SIZE) {
             fprintf(stderr, "WARNING: Read %zu bytes, expected %d bytes.\n", bytes_read, REPORT_SIZE);
         }
+        checksum += checksum16(buf, bytes_read);
         if (!hid_set_feature(dev, buf, bytes_read)) return false;
 
         clear_buffer(buf, REPORT_SIZE);
     }
+    printf("Flashed File Checksum: 0x%04x\n", checksum);
     clear_buffer(buf, REPORT_SIZE);
     fclose(firmware);
 
@@ -641,7 +660,15 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_PROGRAM)) return false;
     if (read_response_32(buf, (sizeof(buf) - sizeof(VALID_FW)), VALID_FW, &resp)) {
         printf("Flash completion verified. \n");
-        return true;
+        uint16_t resp_16 = (uint16_t)resp;
+        if (read_response_16(buf, 8, checksum, &resp_16)) {
+            printf("Flash Verification Checksum: OK!\n");
+            return true;
+        } else {
+            fprintf(stderr, "ERROR:Flash Verification Checksum: FAILED! response is 0x%04x, expected 0x%04x.\n", resp_16, checksum);
+            return false;
+        }
+        return false;
     } else {
         fprintf(stderr, "ERROR: Failed to verify flash completion: response is 0x%08x, expected 0x%08x.\n", resp, VALID_FW);
         return false;
