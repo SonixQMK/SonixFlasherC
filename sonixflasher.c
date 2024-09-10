@@ -44,7 +44,7 @@
 #define CMD_GET_CS 0x9
 #define CMD_VERIFY(x) ((CMD_BASE << 8) | (x))
 
-#define CMD_OK 0xFAFAFAFA
+#define CMD_ACK 0xFAFAFAFA
 #define VALID_FW 0xAAAA5555
 
 #define SN240 1
@@ -371,14 +371,20 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uin
             }
 
             // Check the status directly in the data buffer
-            unsigned int status = *((unsigned int *)(data + 4));
-            if (status != CMD_OK) {
-                fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02x.\n", status, CMD_OK, command & 0xFF);
+            unsigned int cmdreply = *((unsigned int *)(data));
+            unsigned int status   = *((unsigned int *)(data + 4));
+            if (cmdreply == CMD_VERIFY(command)) {
+                if (status != CMD_ACK) {
+                    fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02x.\n", status, CMD_ACK, command & 0xFF);
+                    return false;
+                }
+
+                // Success
+                return true;
+            } else {
+                fprintf(stderr, "ERROR: Invalid response command: 0x%08x, expected command 0x%02x.\n", cmdreply, command & 0xFF);
                 return false;
             }
-
-            // Success
-            return true;
         } else if (res < 0) {
             // Error condition, such as abort pipe
             fprintf(stderr, "ERROR: Device busy or failed to get feature report, retrying...\n");
