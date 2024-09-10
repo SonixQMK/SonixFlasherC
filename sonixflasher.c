@@ -893,13 +893,13 @@ int main(int argc, char *argv[]) {
         }
         if (!ok) error(handle);
         sleep(3);
-        if (chip == SN240 || chip == SN290) ok = protocol_code_option_check(handle); // 240 and 290
+        if (chip != SN240B && chip != SN260) ok = protocol_code_option_check(handle);
         if (!ok) error(handle);
         sleep(1);
         if (cs_level != 0) ok = protocol_reset_cs(handle);
         if (!ok) error(handle);
         sleep(1);
-        if (chip == SN240 || chip == SN290) ok = erase_flash(handle);
+        if (chip != SN240B && chip != SN260) ok = erase_flash(handle);
         if (!ok) error(handle);
         sleep(1);
 
