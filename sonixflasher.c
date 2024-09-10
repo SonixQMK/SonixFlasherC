@@ -54,6 +54,9 @@
 #define SN290 5
 #define SN240C 6
 
+#define CS0_0 0x0000
+#define CS0_1 0xFFFF
+
 #define CS1 0x5A5A
 #define CS2 0xA5A5
 #define CS3 0x55AA
@@ -75,7 +78,7 @@
 #define PROJECT_NAME "sonixflasher"
 #define PROJECT_VER "2.0.3"
 
-uint16_t        CS0              = 0;
+uint16_t        CS0              = CS0_0;
 uint16_t        USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
 uint16_t        USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
 long            MAX_FIRMWARE     = USER_ROM_SIZE_KB(USER_ROM_SIZE_SN32F260);
@@ -83,7 +86,7 @@ bool            flash_jumploader = false;
 bool            debug            = false;
 static uint16_t code_option      = 0x0000; // Initial Code Option Table
 int             chip;
-uint16_t        cs_level;
+int             cs_level;
 
 static void print_vidpid_table() {
     printf("Supported VID/PID pairs:\n");
@@ -227,7 +230,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_SIZE  = USER_ROM_SIZE_SN32F220;
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F220;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                        CS0            = 0xFFFF;
+                        CS0            = CS0_1;
                         sn32_family    = SN240;
                         break;
                     case 2:
@@ -235,7 +238,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_SIZE  = USER_ROM_SIZE_SN32F230;
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F230;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                        CS0            = 0xFFFF;
+                        CS0            = CS0_1;
                         sn32_family    = SN240;
                         break;
                     case 3:
@@ -243,7 +246,7 @@ int sn32_decode_chip(unsigned char *data) {
                         USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240;
                         USER_ROM_PAGES = USER_ROM_PAGES_SN32F240;
                         MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                        CS0            = 0xFFFF;
+                        CS0            = CS0_1;
                         sn32_family    = SN240;
                         break;
                     default:
@@ -258,7 +261,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F260;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F260;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0;
+                CS0            = CS0_0;
                 sn32_family    = SN260;
                 break;
             case SN240B:
@@ -266,7 +269,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240B;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240B;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0;
+                CS0            = CS0_0;
                 sn32_family    = SN240B;
                 break;
             case SN280:
@@ -274,7 +277,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F280;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F280;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0xFFFF;
+                CS0            = CS0_1;
                 sn32_family    = SN280;
                 break;
             case SN290:
@@ -282,7 +285,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F290;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F290;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0xFFFF;
+                CS0            = CS0_1;
                 sn32_family    = SN290;
                 break;
             case SN240C:
@@ -290,7 +293,7 @@ int sn32_decode_chip(unsigned char *data) {
                 USER_ROM_SIZE  = USER_ROM_SIZE_SN32F240C;
                 USER_ROM_PAGES = USER_ROM_PAGES_SN32F240C;
                 MAX_FIRMWARE   = USER_ROM_SIZE_KB(USER_ROM_SIZE);
-                CS0            = 0xFFFF;
+                CS0            = CS0_1;
                 sn32_family    = SN240C;
                 break;
             default:
@@ -319,29 +322,31 @@ bool sn32_check_isp_code_option(unsigned char *data) {
     return true;
 }
 
-uint16_t sn32_get_cs_level(unsigned char *data) {
-    cs_level             = 0;
-    uint16_t combined_cs = (data[14] << 8) | data[15];
+int sn32_get_code_security(unsigned char *data) {
+    cs_level          = -1;
+    uint16_t cs_value = (data[14] << 8) | data[15];
 
-    if (combined_cs == CS0) {
-        printf("Current Security level: CS0. \n");
-    } else {
-        switch (combined_cs) {
-            case CS1:
-                printf("Current Security level: CS1. \n");
-                break;
-            case CS2:
-                printf("Current Security level: CS2. \n");
-                break;
-            case CS3:
-                printf("Current Security level: CS3. \n");
-                break;
-            default:
-                fprintf(stderr, "ERROR: Unsupported Security level: 0x%04X, we don't support this chip.\n", combined_cs);
-                break;
-        }
+    switch (cs_value) {
+        case CS0_0:
+        case CS0_1:
+            cs_level = 0;
+            break;
+        case CS1:
+            cs_level = 1;
+            break;
+        case CS2:
+            cs_level = 2;
+            break;
+        case CS3:
+            cs_level = 3;
+            break;
+        default:
+            fprintf(stderr, "ERROR: Unsupported Code Security value: 0x%04X, we don't support this chip.\n", cs_value);
+            return cs_level;
     }
-    return combined_cs;
+
+    printf("Current Security level: CS%d. Code Security value: 0x%04X.\n", cs_level, cs_value);
+    return cs_level;
 }
 
 bool hid_get_feature(hid_device *dev, unsigned char *data, uint32_t command) {
@@ -454,7 +459,8 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (!hid_get_feature(dev, buf, CMD_GET_FW_VERSION)) return false;
     chip = sn32_decode_chip(buf);
     if (chip == 0) return false;
-    cs_level = sn32_get_cs_level(buf);
+    cs_level = sn32_get_code_security(buf);
+    if (cs_level < 0) return false;
     if (!sn32_check_isp_code_option(buf)) return false;
 
     bool reboot_fail = !read_response_32(buf, 0, 0, &resp);
@@ -890,7 +896,7 @@ int main(int argc, char *argv[]) {
         if (chip == SN240 || chip == SN290) ok = protocol_code_option_check(handle); // 240 and 290
         if (!ok) error(handle);
         sleep(1);
-        if (cs_level != CS0) ok = protocol_reset_cs(handle);
+        if (cs_level != 0) ok = protocol_reset_cs(handle);
         if (!ok) error(handle);
         sleep(1);
         if (chip == SN240 || chip == SN290) ok = erase_flash(handle);
