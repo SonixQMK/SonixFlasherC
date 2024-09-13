@@ -261,7 +261,7 @@ int sn32_decode_chip(unsigned char *data) {
         printf("Sonix SN32 Detected.\n");
         printf("\n");
         printf("Checking variant... ");
-        sleep(2);
+
         int sn32_family;
         switch (data[9]) {
             case SN240:
@@ -496,7 +496,7 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     // 01) Initialize
     printf("\n");
     printf("Fetching flash version...\n");
-    sleep(2);
+
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_GET_FW_VERSION;
     write_buffer_16(buf + 1, CMD_BASE);
@@ -623,7 +623,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     // 05) Enable program
     printf("\n");
     printf("Enabling Program mode...\n");
-    sleep(2);
+
     clear_buffer(buf, REPORT_SIZE);
     buf[0] = CMD_ENABLE_PROGRAM;
     write_buffer_16(buf + 1, CMD_BASE);
@@ -965,7 +965,7 @@ int main(int argc, char *argv[]) {
             attempt_no++;
         }
         if (!ok) error(handle);
-        sleep(3);
+        sleep(1);
         if (chip != SN240B && chip != SN260) ok = protocol_code_option_check(handle);
         if (!ok) error(handle);
         sleep(1);
@@ -986,7 +986,7 @@ int main(int argc, char *argv[]) {
         }
         if (((flash_jumploader && sanity_check_jumploader_firmware(prepared_file_size)) || (!flash_jumploader && sanity_check_firmware(prepared_file_size, offset))) && (flash(handle, offset, file_name, prepared_file_size, no_offset_check))) {
             printf("Device succesfully flashed!\n");
-            sleep(3);
+            sleep(2);
             protocol_reboot_user(handle);
         } else {
             fprintf(stderr, "ERROR: Could not flash the device. Try again.\n");
