@@ -90,7 +90,7 @@ bool               debug            = false;
 static uint16_t    code_option      = 0x0000; // Initial Code Option Table
 int                chip;
 int                cs_level;
-const unsigned int known_isp_pids[] = {SN229_PID, SN239_PID, SN248B_PID, SN248C_PID, SN268_PID, SN289_PID, SN299_PID};
+const unsigned int known_isp_pids[] = {SN229_PID, SN239_PID, SN249_PID, SN248B_PID, SN248C_PID, SN268_PID, SN289_PID, SN299_PID};
 
 static void print_vidpid_table() {
     printf("Supported VID/PID pairs:\n");
