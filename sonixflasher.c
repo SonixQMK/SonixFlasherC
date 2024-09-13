@@ -361,8 +361,7 @@ int sn32_decode_chip(unsigned char *data) {
 
 bool sn32_check_isp_code_option(unsigned char *data) {
     uint16_t received_code_option = (data[12] << 8) | data[13];
-    printf("Expected Code Option Table: 0x%04X\n", code_option);
-    printf("Received Code Option Table: 0x%04X\n", received_code_option);
+    printf("Checking Code Option Table... Expected: 0x%04X Received: 0x%04X.\n", code_option, received_code_option);
     if (received_code_option != code_option) {
         printf("Updating Code Option Table from 0x%04X to 0x%04X\n", code_option, received_code_option);
         code_option = received_code_option;
