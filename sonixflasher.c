@@ -456,7 +456,14 @@ bool send_magic_command(hid_device *dev, const uint32_t *command) {
     clear_buffer(buf, sizeof(buf));
     write_buffer_32(buf, command[0]);
     write_buffer_32(buf + sizeof(uint32_t), command[1]);
-    if (!hid_set_feature(dev, buf, sizeof(buf))) return false;
+    uint8_t attempt_no = 1;
+    while (!hid_set_feature(dev, buf, REPORT_SIZE) && attempt_no <= MAX_ATTEMPTS) // Try {MAX ATTEMPTS} to init flash.
+    {
+        printf("Failed to greet device, re-trying in 1 second. Attempt %d of %d...\n", attempt_no, MAX_ATTEMPTS);
+        sleep(1);
+        attempt_no++;
+    }
+    if (attempt_no > MAX_ATTEMPTS) return false;
     clear_buffer(buf, sizeof(buf));
     return true;
 }
