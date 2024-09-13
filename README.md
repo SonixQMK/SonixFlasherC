@@ -57,10 +57,12 @@ make sonixflasher
 +-----------------+--------+--------+
 |     Device      |  VID   |  PID   |
 +-----------------+--------+--------+
-| SONIX SN32F26x  | 0x0C45 | 0x7010 |
+| SONIX SN32F22x  | 0x0C45 | 0x7900 |
+| SONIX SN32F23x  | 0x0C45 | 0x7900 |
+| SONIX SN32F24x  | 0x0C45 | 0x7900 |
 | SONIX SN32F24xB | 0x0C45 | 0x7040 |
 | SONIX SN32F24xC | 0x0C45 | 0x7145 |
-| SONIX SN32F24x  | 0x0C45 | 0x7900 |
+| SONIX SN32F26x  | 0x0C45 | 0x7010 |
 | SONIX SN32F28x  | 0x0C45 | 0x7120 |
 | SONIX SN32F29x  | 0x0C45 | 0x7140 |
 +-----------------+--------+--------+
