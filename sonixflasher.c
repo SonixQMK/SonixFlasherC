@@ -78,7 +78,7 @@
 #define RETRY_DELAY_MS 100
 
 #define PROJECT_NAME "sonixflasher"
-#define PROJECT_VER "2.0.5"
+#define PROJECT_VER "2.0.6"
 
 uint16_t           BLANK_CHECKSUM   = 0x0000;
 uint16_t           CS0              = CS0_0;
