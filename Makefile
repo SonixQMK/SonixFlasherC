@@ -31,7 +31,7 @@ endif
 ifeq "$(OS)" "windows"
 
 CFLAGS+=`pkg-config hidapi --cflags`
-LIBS+= -lhidapi -lsetupapi -Wl,--enable-auto-import -static-libgcc -static-libstdc++
+LIBS+= -lhidapi -lsetupapi -Wl,--enable-auto-import
 EXE=.exe
 
 endif
