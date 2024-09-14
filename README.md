@@ -45,7 +45,7 @@ make sonixflasher
 - `--offset -o`      Set flashing offset (default: 0).
 - `--file -f`        Binary of the firmware to flash (*.bin extension).
 - `--jumploader -j`  Define if flashing a jumploader.
-- `--reboot -r`      Request bootloader reboot in OEM firmware (options: evision, hfd).
+- `--reboot -r`      Request bootloader reboot in OEM firmware (options: sonix, evision, hfd).
 - `--debug -d`       Enable debug mode.
 - `--list-vidpid -l` Display supported VID/PID pairs.
 - `--nooffset -k`    Disable offset checks.

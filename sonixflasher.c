@@ -117,7 +117,7 @@ static void print_usage(char *m_name) {
             "  --offset -o      Set flashing offset (default: 0)\n"
             "  --file -f        Binary of the firmware to flash (*.bin extension) \n"
             "  --jumploader -j  Define if we are flashing a jumploader \n"
-            "  --reboot -r      Request bootloader reboot in OEM firmware (options: evision, hfd) \n"
+            "  --reboot -r      Request bootloader reboot in OEM firmware (options: sonix, evision, hfd) \n"
             "  --debug -d       Enable debug mode \n"
             "  --nooffset -k    Disable offset checks \n"
             "  --list-vidpid -l Display supported VID/PID pairs \n"
@@ -469,15 +469,15 @@ bool send_magic_command(hid_device *dev, const uint32_t *command) {
 }
 
 bool reboot_to_bootloader(hid_device *dev, char *oem_option) {
-    uint32_t evision_reboot[2] = {0x5AA555AA, 0xCC3300FF};
-    uint32_t hfd_reboot[2]     = {0x5A8942AA, 0xCC6271FF};
+    uint32_t sonix_reboot[2] = {0x5AA555AA, 0xCC3300FF};
+    uint32_t hfd_reboot[2]   = {0x5A8942AA, 0xCC6271FF};
 
     if (oem_option == NULL) {
         printf("ERROR: reboot option cannot be null.\n");
         return false;
     }
-    if (strcmp(oem_option, "evision") == 0) {
-        return send_magic_command(dev, evision_reboot);
+    if (strcmp(oem_option, "sonix") == 0 || strcmp(oem_option, "evision") == 0) {
+        return send_magic_command(dev, sonix_reboot);
     } else if (strcmp(oem_option, "hfd") == 0) {
         return send_magic_command(dev, hfd_reboot);
     }
@@ -493,9 +493,9 @@ bool protocol_init(hid_device *dev, bool oem_reboot, char *oem_option) {
     if (oem_reboot) {
         printf("Requesting bootloader reboot...\n");
         if (reboot_to_bootloader(dev, oem_option))
-            printf("Bootloader reboot succesfull.\n");
+            printf("Bootloader reboot request success.\n");
         else {
-            printf("ERROR: Bootloader reboot failed.\n");
+            printf("ERROR: Bootloader reboot request failed.\n");
             return false;
         }
     }
