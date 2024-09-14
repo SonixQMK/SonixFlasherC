@@ -139,6 +139,18 @@ static void display_version(char *m_name) {
     fprintf(stderr, "%s " PROJECT_VER "\n", m_name);
 }
 
+void cleanup(hid_device *handle) {
+    if (handle) hid_close(handle);
+    if (hid_exit() != 0) {
+        fprintf(stderr, "ERROR: Could not close the device.\n");
+    }
+}
+
+void error(hid_device *handle) {
+    cleanup(handle);
+    exit(1);
+}
+
 void clear_buffer(unsigned char *data, size_t length) {
     for (int i = 0; i < length; i++)
         data[i] = 0;
@@ -431,6 +443,10 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uin
                 return true;
             } else {
                 fprintf(stderr, "ERROR: Invalid response command: 0x%08x, expected command 0x%02x.\n", cmdreply, command & 0xFF);
+                if ((cmdreply == CMD_VERIFY(CMD_ENABLE_PROGRAM)) && (status == CMD_ACK)) {
+                    printf("Device progam pending. Please power cycle the device.\n");
+                    error(dev);
+                }
                 return false;
             }
         } else if (res < 0) {
@@ -807,18 +823,6 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
 
     fclose(fp);
     return file_size;
-}
-
-void cleanup(hid_device *handle) {
-    if (handle) hid_close(handle);
-    if (hid_exit() != 0) {
-        fprintf(stderr, "ERROR: Could not close the device.\n");
-    }
-}
-
-void error(hid_device *handle) {
-    cleanup(handle);
-    exit(1);
 }
 
 int main(int argc, char *argv[]) {
