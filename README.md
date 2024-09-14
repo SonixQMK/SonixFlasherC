@@ -54,9 +54,8 @@ make sonixflasher
 
 #### ISP Bootloader Mode Defaults:
 
-+-----------------+--------+--------+
-|     Device      |  VID   |  PID   |
-+-----------------+--------+--------+
+|      Device     |   VID  |   PID  |
+|-----------------|--------|--------|
 | SONIX SN32F22x  | 0x0C45 | 0x7900 |
 | SONIX SN32F23x  | 0x0C45 | 0x7900 |
 | SONIX SN32F24x  | 0x0C45 | 0x7900 |
@@ -65,7 +64,6 @@ make sonixflasher
 | SONIX SN32F26x  | 0x0C45 | 0x7010 |
 | SONIX SN32F28x  | 0x0C45 | 0x7120 |
 | SONIX SN32F29x  | 0x0C45 | 0x7140 |
-+-----------------+--------+--------+
 
 Notice that some devices support flashing while booted. In that case, use
 ```
