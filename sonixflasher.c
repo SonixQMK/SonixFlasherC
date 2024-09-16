@@ -17,7 +17,6 @@
 #include <hidapi.h>
 
 #define REPORT_SIZE 64
-#define REPORT_LENGTH (REPORT_SIZE + 1)
 #define USER_ROM_SIZE_SN32F260 30   // in KB
 #define USER_ROM_SIZE_SN32F220 16   // in KB
 #define USER_ROM_SIZE_SN32F230 32   // in KB
@@ -246,30 +245,21 @@ bool hid_set_feature(hid_device *dev, unsigned char *data, size_t length) {
         printf("Sending payload...\n");
         print_data(data, length);
     }
-    // hidapi will hijack a 0x00 for Report ID and strip it from the buffer.
-    // Check if the first byte of data is 0x00
-    if (data[0] == 0x00) {
-        // Allocate a temporary buffer with an extra byte
-        unsigned char temp_buf[REPORT_SIZE + 1];
 
-        // Set the Report ID byte (0x00) at the start of the buffer
-        temp_buf[0] = 0x00;
+    // Set Report ID to 0 before passing to hidapi.
+    // Allocate a send buffer with an extra byte
+    unsigned char send_buf[REPORT_SIZE + 1];
 
-        // Copy the data into the buffer, starting from the second byte
-        // This allows the actual 0x00 to be sent
-        memcpy(temp_buf + 1, data, length);
+    // Set the Report ID byte (0x00) at the start of the buffer
+    send_buf[0] = 0x00;
 
-        // Send the feature report using the temporary buffer
-        if (hid_send_feature_report(dev, temp_buf, length + 1) < 0) {
-            fprintf(stderr, "ERROR: Error while writing command 0x%02x! Reason: %ls\n", data[0], hid_error(dev));
-            return false;
-        }
-    } else {
-        // Send the report as is
-        if (hid_send_feature_report(dev, data, length) < 0) {
-            fprintf(stderr, "ERROR: Error while writing command 0x%02x! Reason: %ls\n", data[0], hid_error(dev));
-            return false;
-        }
+    // Copy the data into the buffer, starting from the second byte
+    memcpy(send_buf + 1, data, length);
+
+    // Send the feature report using the send buffer
+    if (hid_send_feature_report(dev, send_buf, length + 1) < 0) {
+        fprintf(stderr, "ERROR: Error while writing command 0x%02x! Reason: %ls\n", data[0], hid_error(dev));
+        return false;
     }
 
     return true;
@@ -418,17 +408,16 @@ int sn32_get_code_security(unsigned char *data) {
 
 bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uint32_t command) {
     clear_buffer(data, data_size);
-    int res = hid_get_feature_report(dev, data, REPORT_LENGTH);
 
     uint8_t attempt_no = 1;
     while (attempt_no <= MAX_ATTEMPTS) {
         clear_buffer(data, data_size);
 
         // Attempt to get the feature report
-        res = hid_get_feature_report(dev, data, REPORT_LENGTH);
+        int res = hid_get_feature_report(dev, data, data_size + 1);
 
-        if (res == REPORT_LENGTH) {
-            // Shift the data buffer to remove the first byte
+        if (res == (data_size + 1)) {
+            // Shift the data buffer to remove the Report ID
             memmove(data, data + 1, res - 1);
 
             if (debug) {
@@ -462,7 +451,7 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uin
             usleep(RETRY_DELAY_MS * 1000); // Delay before retrying
         } else {
             // Incorrect response length
-            fprintf(stderr, "ERROR: Invalid response length for command 0x%02x: got %d, expected %d.\n", command & 0xFF, res, REPORT_LENGTH);
+            fprintf(stderr, "ERROR: Invalid response length for command 0x%02x: got %d, expected %zu.\n", command & 0xFF, res, data_size + 1);
             return false;
         }
     }
