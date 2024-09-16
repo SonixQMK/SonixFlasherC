@@ -7,6 +7,13 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <limits.h>
+#include <unistd.h>
+#endif
+
 #include <hidapi.h>
 
 #define REPORT_SIZE 64
@@ -445,7 +452,6 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uin
                 fprintf(stderr, "ERROR: Invalid response command: 0x%08x, expected command 0x%02x.\n", cmdreply, command & 0xFF);
                 if ((cmdreply == CMD_VERIFY(CMD_ENABLE_PROGRAM)) && (status == CMD_ACK)) {
                     printf("Device progam pending. Please power cycle the device.\n");
-                    error(dev);
                 }
                 return false;
             }
@@ -825,6 +831,28 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
     return file_size;
 }
 
+char *get_full_path(const char *file_name) {
+    char *full_path = NULL;
+
+#ifdef _WIN32
+    char buffer[MAX_PATH];
+    if (GetFullPathName(file_name, MAX_PATH, buffer, NULL) != 0) {
+        full_path = strdup(buffer);
+    } else {
+        fprintf(stderr, "ERROR: Could not resolve full path for file: '%s'\n", file_name);
+    }
+#else
+    char buffer[PATH_MAX];
+    if (realpath(file_name, buffer) != NULL) {
+        full_path = strdup(buffer);
+    } else {
+        fprintf(stderr, "ERROR: Could not resolve full path for file: '%s'\n", file_name);
+    }
+#endif
+
+    return full_path;
+}
+
 int main(int argc, char *argv[]) {
     int         opt, opt_index;
     hid_device *handle;
@@ -886,7 +914,7 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'f': // file name
-                file_name = optarg;
+                file_name = get_full_path(optarg);
                 break;
             case 'o': // offset
                 offset = strtol(optarg, &endptr, 0);
@@ -993,6 +1021,7 @@ int main(int argc, char *argv[]) {
         long prepared_file_size = prepare_file_to_flash(file_name, flash_jumploader);
         if (prepared_file_size < 0) {
             fprintf(stderr, "ERROR: File preparation failed.\n");
+            free(file_name);
             error(handle);
         }
         if (((flash_jumploader && sanity_check_jumploader_firmware(prepared_file_size)) || (!flash_jumploader && sanity_check_firmware(prepared_file_size, offset))) && (flash(handle, offset, file_name, prepared_file_size, no_offset_check))) {
@@ -1001,13 +1030,15 @@ int main(int argc, char *argv[]) {
             protocol_reboot_user(handle);
         } else {
             fprintf(stderr, "ERROR: Could not flash the device. Try again.\n");
+            free(file_name);
             error(handle);
         }
     } else {
         fprintf(stderr, "ERROR: Could not open the device (Is the device connected?).\n");
+        free(file_name);
         error(handle);
     }
-
+    free(file_name);
     cleanup(handle);
     exit(0);
 }
