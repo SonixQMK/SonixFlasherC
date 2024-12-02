@@ -757,6 +757,22 @@ long get_file_size(FILE *fp) {
     return file_size;
 }
 
+bool truncate_and_reopen(const char *file_name, FILE **fp, long new_size) {
+    fclose(*fp); // Close the file before truncating
+    if (truncate(file_name, new_size) != 0) {
+        fprintf(stderr, "ERROR: Could not truncate file to size %ld.\n", new_size);
+        return false;
+    }
+
+    *fp = fopen(file_name, "rb"); // Reopen the file in read mode
+    if (*fp == NULL) {
+        fprintf(stderr, "ERROR: Could not reopen file after truncation.\n");
+        return false;
+    }
+
+    return true;
+}
+
 long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
     FILE *fp = fopen(file_name, "rb");
     if (fp == NULL) {
@@ -783,16 +799,7 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
         printf("Warning: jumploader binary doesn't have a size of: 0x%04x bytes.\n", QMK_OFFSET_DEFAULT);
         printf("Truncating jumploader binary to: 0x%04x.\n", QMK_OFFSET_DEFAULT);
 
-        fclose(fp);
-        if (truncate(file_name, QMK_OFFSET_DEFAULT) != 0) {
-            fprintf(stderr, "ERROR: Could not truncate file.\n");
-            return -1;
-        }
-
-        // Reopen the file
-        fp = fopen(file_name, "rb");
-        if (fp == NULL) {
-            fprintf(stderr, "ERROR: Could not open file after truncation.\n");
+        if (!truncate_and_reopen(file_name, &fp, QMK_OFFSET_DEFAULT)) {
             return -1;
         }
 
@@ -815,16 +822,7 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
         }
         printf("File size after padding: %ld bytes\n", padded_file_size);
 
-        fclose(fp);
-        if (truncate(file_name, padded_file_size) != 0) {
-            fprintf(stderr, "ERROR: Could not truncate file.\n");
-            return -1;
-        }
-
-        // Reopen the file
-        fp = fopen(file_name, "rb");
-        if (fp == NULL) {
-            fprintf(stderr, "ERROR: Could not open file after truncation.\n");
+        if (!truncate_and_reopen(file_name, &fp, padded_file_size)) {
             return -1;
         }
 
