@@ -799,6 +799,7 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
         // Recalculate file size
         file_size = get_file_size(fp);
         if (file_size == -1L) {
+            fprintf(stderr, "ERROR: Truncated file size calculation failed.\n");
             fclose(fp);
             return -1;
         }
@@ -813,7 +814,27 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
             padded_file_size++;
         }
         printf("File size after padding: %ld bytes\n", padded_file_size);
-        file_size = padded_file_size;
+
+        fclose(fp);
+        if (truncate(file_name, padded_file_size) != 0) {
+            fprintf(stderr, "ERROR: Could not truncate file.\n");
+            return -1;
+        }
+
+        // Reopen the file
+        fp = fopen(file_name, "rb");
+        if (fp == NULL) {
+            fprintf(stderr, "ERROR: Could not open file after truncation.\n");
+            return -1;
+        }
+
+        // Recalculate file size
+        file_size = get_file_size(fp);
+        if (file_size == -1L) {
+            fprintf(stderr, "ERROR: Truncated file size calculation failed.\n");
+            fclose(fp);
+            return -1;
+        }
     }
 
     fclose(fp);
