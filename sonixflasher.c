@@ -51,7 +51,7 @@
 #define CMD_VERIFY(x) ((CMD_BASE << 8) | (x))
 
 #define CMD_ACK 0xFAFAFAFA
-#define VALID_FW 0xAAAA5555
+#define LAST_CHUNK_OFFSET (REPORT_SIZE - sizeof(uint32_t))
 
 #define SN240 1
 #define SN260 2
@@ -657,12 +657,21 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
 
     size_t   bytes_read = 0;
     uint16_t checksum   = 0;
+    uint32_t last_chunk = 0;
     clear_buffer(buf, REPORT_SIZE);
     while ((bytes_read = fread(buf, 1, REPORT_SIZE, firmware)) > 0) {
         if (bytes_read < REPORT_SIZE) {
             fprintf(stderr, "WARNING: Read %zu bytes, expected %d bytes.\n", bytes_read, REPORT_SIZE);
         }
         checksum += checksum16(buf, bytes_read);
+
+        // Capture the last 4 bytes of this buffer for last_chunk
+        if (bytes_read >= sizeof(uint32_t)) {
+            memcpy(&last_chunk, buf + (bytes_read - sizeof(uint32_t)), sizeof(uint32_t));
+        } else {
+            memcpy(&last_chunk, buf, bytes_read);
+        }
+
         if (!hid_set_feature(dev, buf, bytes_read)) return false;
 
         clear_buffer(buf, REPORT_SIZE);
@@ -675,7 +684,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     printf("\n");
     printf("Verifying flash completion...\n");
     if (!hid_get_feature(dev, buf, REPORT_SIZE, CMD_ENABLE_PROGRAM)) return false;
-    if (read_response_32(buf, (sizeof(buf) - sizeof(VALID_FW)), VALID_FW, &resp)) {
+    if (read_response_32(buf, LAST_CHUNK_OFFSET, last_chunk, &resp)) {
         printf("Flash completion verified. \n");
         uint16_t resp_16 = (uint16_t)resp;
         if (read_response_16(buf, 8, checksum, &resp_16)) {
@@ -687,7 +696,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
         }
         return false;
     } else {
-        fprintf(stderr, "ERROR: Failed to verify flash completion: response is 0x%08x, expected 0x%08x.\n", resp, VALID_FW);
+        fprintf(stderr, "ERROR: Failed to verify flash completion: response is 0x%08x, expected 0x%08x.\n", resp, last_chunk);
         return false;
     }
     return false;
