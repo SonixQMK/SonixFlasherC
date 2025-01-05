@@ -87,7 +87,6 @@
 #define PROJECT_VER "2.0.7"
 
 uint16_t           BLANK_CHECKSUM   = 0x0000;
-uint16_t           checksum         = 0;
 uint16_t           CS0              = CS0_0;
 uint16_t           USER_ROM_SIZE    = USER_ROM_SIZE_SN32F260;
 uint16_t           USER_ROM_PAGES   = USER_ROM_PAGES_SN32F260;
@@ -657,12 +656,14 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
     printf("Flashing device, please wait...\n");
 
     size_t   bytes_read = 0;
+    uint16_t checksum   = 0;
     uint32_t last_chunk = 0;
     clear_buffer(buf, REPORT_SIZE);
     while ((bytes_read = fread(buf, 1, REPORT_SIZE, firmware)) > 0) {
         if (bytes_read < REPORT_SIZE) {
             fprintf(stderr, "WARNING: Read %zu bytes, expected %d bytes.\n", bytes_read, REPORT_SIZE);
         }
+        checksum += checksum16(buf, bytes_read);
 
         // Capture the last 4 bytes of this buffer for last_chunk
         if (bytes_read >= sizeof(uint32_t)) {
@@ -675,6 +676,7 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
 
         clear_buffer(buf, REPORT_SIZE);
     }
+    printf("Flashed File Checksum: 0x%04x\n", checksum);
     clear_buffer(buf, REPORT_SIZE);
     fclose(firmware);
 
@@ -780,32 +782,6 @@ bool truncate_and_reopen(const char *file_name, FILE **fp, long new_size) {
     return true;
 }
 
-uint16_t calculate_checksum(FILE *fp, long file_size) {
-    checksum = 0;
-    uint16_t checksum_calc = 0;
-    unsigned char *file_data = malloc(file_size);
-
-    if (file_data == NULL) {
-        fprintf(stderr, "ERROR: Could not allocate memory for file data.\n");
-        return -1;
-    }
-
-    fseek(fp, 0, SEEK_SET);
-
-    // Read the entire file into the allocated buffer
-    if (fread(file_data, 1, file_size, fp) != file_size) {
-        fprintf(stderr, "ERROR: Could not read the entire file.\n");
-        free(file_data);
-        return -1;
-    }
-
-    // Calculate the checksum
-    checksum_calc = checksum16(file_data, file_size);
-
-    free(file_data);
-    return checksum_calc;
-}
-
 long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
     FILE *fp = fopen(file_name, "rb");
     if (fp == NULL) {
@@ -826,15 +802,6 @@ long prepare_file_to_flash(const char *file_name, bool flash_jumploader) {
     }
     printf("\n");
     printf("File size: %ld bytes\n", file_size);
-
-    uint16_t checksum_calc = calculate_checksum(fp, file_size);
-    if (checksum_calc == -1L) {
-        fclose(fp);
-        return -1;
-    }
-    checksum = checksum_calc;
-    printf("\n");
-    printf("File Checksum: 0x%04x\n", checksum);
 
     // If jumploader is not 0x200 in length, add padded zeroes to file
     if (flash_jumploader && file_size < QMK_OFFSET_DEFAULT) {
