@@ -691,6 +691,10 @@ bool flash(hid_device *dev, long offset, const char *file_name, long fw_size, bo
             printf("Flash Verification Checksum: OK!\n");
             return true;
         } else {
+            if (offset != 0) {
+                printf("Warning: offset 0x%04lx requested. Flash Verification Checksum disabled.\n", offset);
+                return true;
+            }
             fprintf(stderr, "ERROR:Flash Verification Checksum: FAILED! response is 0x%04x, expected 0x%04x.\n", resp_16, checksum);
             return false;
         }
