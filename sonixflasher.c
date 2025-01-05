@@ -37,6 +37,7 @@
 #define USER_ROM_PAGES_SN32F290 256
 
 #define QMK_OFFSET_DEFAULT 0x200
+#define MIN_FIRMWARE 0x100
 
 #define CMD_BASE 0x55AA
 #define CMD_GET_FW_VERSION 0x1
@@ -730,7 +731,7 @@ bool sanity_check_firmware(long fw_size, long offset) {
         fprintf(stderr, "ERROR: Firmware is too large too flash: 0x%08lx max allowed is 0x%08lx.\n", fw_size, MAX_FIRMWARE - offset);
         return false;
     }
-    if (fw_size < 0x100) {
+    if (fw_size < MIN_FIRMWARE) {
         fprintf(stderr, "ERROR: Firmware is too small.");
         return false;
     }
