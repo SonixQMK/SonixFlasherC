@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
   
     - name: Install libudev and libhidapi
       run: sudo apt-get install -y libudev-dev libhidapi-dev
@@ -30,7 +30,7 @@ jobs:
         files=$(cat artifact_files.txt)
         echo "FILES=$files" >> $GITHUB_ENV
 
-    - uses: actions/upload-artifact@v3.0.0
+    - uses: actions/upload-artifact@v7
       with:
         name: SonixFlasherC-Linux
         path: ${{ env.FILES }}
@@ -42,7 +42,7 @@ jobs:
       LIBRARY_PATH: /opt/homebrew/lib
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Install hidapi
       run: |
@@ -60,7 +60,7 @@ jobs:
         files=$(cat artifact_files.txt)
         echo "FILES=$files" >> $GITHUB_ENV
 
-    - uses: actions/upload-artifact@v3.0.0
+    - uses: actions/upload-artifact@v7
       with:
         name: SonixFlasherC-macOS
         path: ${{ env.FILES }}
@@ -72,7 +72,7 @@ jobs:
         shell: msys2 {0}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
@@ -90,7 +90,7 @@ jobs:
         files=$(cat artifact_files.txt)
         echo "FILES=$files" >> $GITHUB_ENV
 
-    - uses: actions/upload-artifact@v3.0.0
+    - uses: actions/upload-artifact@v7
       with:
         name: SonixFlasherC-Windows
         path: ${{ env.FILES }}
@@ -104,9 +104,9 @@ jobs:
     if: github.event.release.tag_name
 
     steps:
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v8
 
-    - uses: softprops/action-gh-release@v1
+    - uses: softprops/action-gh-release@v3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
