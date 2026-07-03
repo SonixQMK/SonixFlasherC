@@ -408,35 +408,61 @@ int sn32_get_code_security(unsigned char *data) {
 }
 
 bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uint32_t command) {
-    clear_buffer(data, data_size);
+    if (data == NULL || data_size == 0) {
+        fprintf(stderr, "ERROR: Invalid buffer parameters.\n");
+        return false;
+    }
+
+    // HID feature reports include a 1-byte report ID prefix
+    // Allocate buffer: report_id (1 byte) + payload (data_size bytes)
+    const size_t hid_buffer_size = data_size + 1;
+    unsigned char *hid_buffer = malloc(hid_buffer_size);
+    if (!hid_buffer) {
+        fprintf(stderr, "ERROR: Failed to allocate %zu bytes for HID buffer.\n", hid_buffer_size);
+        return false;
+    }
 
     uint8_t attempt_no = 1;
     while (attempt_no <= MAX_ATTEMPTS) {
-        clear_buffer(data, data_size);
+        clear_buffer(hid_buffer, hid_buffer_size);
+        hid_buffer[0] = 0x00; // Report ID
 
         // Attempt to get the feature report
-        int res = hid_get_feature_report(dev, data, data_size + 1);
+        int res = hid_get_feature_report(dev, hid_buffer, hid_buffer_size);
 
-        if (res == (data_size + 1)) {
-            // Shift the data buffer to remove the Report ID
-            memmove(data, data + 1, res - 1);
+        if (res == hid_buffer_size) {
+            // Strip report ID and copy payload to caller's buffer
+            // hid_buffer[0] = report ID
+            // hid_buffer[1..data_size] = payload
+            memcpy(data, hid_buffer + 1, data_size);
 
             if (debug) {
                 printf("\n");
                 printf("Received payload...\n");
-                print_data(data, res - 1);
+                print_data(data, data_size);
             }
 
-            // Check the status directly in the data buffer
+            // Verify command response
+            // Expected structure in data buffer (after stripping report ID):
+            // [0..3]  = command reply (uint32_t)
+            // [4..7]  = status (uint32_t)
+            // [8..63] = payload
+            if (data_size < 8) {
+                fprintf(stderr, "ERROR: Buffer too small for command response validation.\n");
+                free(hid_buffer);
+                return false;
+            }
             unsigned int cmdreply = *((unsigned int *)(data));
             unsigned int status   = *((unsigned int *)(data + 4));
             if (cmdreply == CMD_VERIFY(command)) {
                 if (status != CMD_ACK) {
                     fprintf(stderr, "ERROR: Invalid response status: 0x%08x, expected 0x%08x for command 0x%02x.\n", status, CMD_ACK, command & 0xFF);
+                    free(hid_buffer);
                     return false;
                 }
 
                 // Success
+                free(hid_buffer);
                 return true;
             } else {
                 fprintf(stderr, "ERROR: Invalid response command: 0x%08x, expected command 0x%02x.\n", cmdreply, command & 0xFF);
@@ -452,13 +478,15 @@ bool hid_get_feature(hid_device *dev, unsigned char *data, size_t data_size, uin
             usleep(RETRY_DELAY_MS * 1000); // Delay before retrying
         } else {
             // Incorrect response length
-            fprintf(stderr, "ERROR: Invalid response length for command 0x%02x: got %d, expected %zu.\n", command & 0xFF, res, data_size + 1);
+            fprintf(stderr, "ERROR: Invalid response length for command 0x%02x: got %d, expected %zu.\n", command & 0xFF, res, hid_buffer_size);
+            free(hid_buffer);
             return false;
         }
     }
 
     // After retries failed
-    fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02x after %d retries.\n", command & 0xFF, attempt_no);
+    fprintf(stderr, "ERROR: Failed to get feature report for command 0x%02x after %d retries.\n", command & 0xFF, MAX_ATTEMPTS);
+    free(hid_buffer);
     return false;
 }
 
