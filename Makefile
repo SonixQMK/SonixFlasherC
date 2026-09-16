@@ -49,17 +49,18 @@ endif
 
 ############# common
 
-CFLAGS+=-Wall
-OBJS += sonixflasher.o
+SRCS := $(wildcard src/*.c)
+OBJS := $(SRCS:.c=.o)
+
+CFLAGS += -Wall -Iinclude
 
 all: sonixflasher
 
-$(OBJS): %.o: %.c
+src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-
 sonixflasher: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o sonixflasher$(EXE) $(LIBS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@$(EXE) $(LIBS)
 
 clean:
 	rm -f $(OBJS)
