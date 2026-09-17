@@ -4,7 +4,7 @@
 #include "mem.h"
 #include <unistd.h>
 
-bool hid_send_report(hid_device *dev, const uint8_t *data, size_t len) {
+bool hid_send_report(usb_device_t *dev, const uint8_t *data, size_t len) {
   if (!dev || !data) {
     log_error("Invalid HID device or data");
     return false;
@@ -23,15 +23,15 @@ bool hid_send_report(hid_device *dev, const uint8_t *data, size_t len) {
 
   log_hex("Sending", buf, len + 1);
 
-  if (hid_send_feature_report(dev, buf, len + 1) < 0) {
-    log_error("Failed to send HID report: %ls", hid_error(dev));
+  if (usb_device_write(dev, buf, len + 1) < 0) {
+    log_error("Failed to send HID report: %ls", usb_device_error(dev));
     return false;
   }
 
   return true;
 }
 
-bool hid_send_payload(hid_device *dev, const uint8_t *data, size_t len,
+bool hid_send_payload(usb_device_t *dev, const uint8_t *data, size_t len,
                       size_t current, size_t total) {
   if (!dev || !data) {
     log_error("Invalid HID device or data");
@@ -57,15 +57,15 @@ bool hid_send_payload(hid_device *dev, const uint8_t *data, size_t len,
   /* Log data with proper hex formatting */
   log_hex("  Data", data, len);
 
-  if (hid_send_feature_report(dev, buf, len + 1) < 0) {
-    log_error("Failed to send HID payload: %ls", hid_error(dev));
+  if (usb_device_write(dev, buf, len + 1) < 0) {
+    log_error("Failed to send HID payload: %ls", usb_device_error(dev));
     return false;
   }
 
   return true;
 }
 
-bool hid_recv_report(hid_device *dev, uint8_t *data, size_t len,
+bool hid_recv_report(usb_device_t *dev, uint8_t *data, size_t len,
                      uint32_t expected_cmd) {
   if (!dev || !data) {
     log_error("Invalid HID device or buffer");
@@ -89,7 +89,7 @@ bool hid_recv_report(hid_device *dev, uint8_t *data, size_t len,
     mem_zero(buf, len + 1);
     buf[0] = 0x00; /* Report ID */
 
-    int res = hid_get_feature_report(dev, buf, len + 1);
+    int res = usb_device_read(dev, buf, len + 1);
 
     if (res == (int)(len + 1)) {
       /* Strip report ID and copy payload */

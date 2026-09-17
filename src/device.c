@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static bool device_send_reboot_cmd(hid_device *dev, const char *type) {
+static bool device_send_reboot_cmd(usb_device_t *dev, const char *type) {
   if (!dev || !type)
     return false;
 
@@ -47,7 +47,7 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
   if (!dev)
     return false;
 
-  if (hid_init() < 0) {
+  if (!usb_device_init()) {
     log_error("HID initialization failed");
     return false;
   }
@@ -56,7 +56,7 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
   uint8_t attempts = 0;
 
   while (attempts < MAX_ATTEMPTS) {
-    dev->handle = hid_open(vid, pid, NULL);
+    dev->handle = usb_device_open(vid, pid);
     if (dev->handle) {
       log_info("Device opened successfully");
       dev->vid = vid;
@@ -69,7 +69,7 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
     attempts++;
     sleep(HID_WAIT_SEC);
   }
-
+  usb_device_exit();
   log_error("Failed to open device after %d attempts", MAX_ATTEMPTS);
   return false;
 }
@@ -79,13 +79,11 @@ void device_close(device_t *dev) {
     return;
 
   if (dev->handle) {
-    hid_close(dev->handle);
+    usb_device_close(dev->handle);
     dev->handle = NULL;
   }
 
-  if (hid_exit() != 0) {
-    log_warn("HID exit failed");
-  }
+  usb_device_exit();
 }
 
 static bool get_firmware_version(device_t *dev, uint8_t *buf) {

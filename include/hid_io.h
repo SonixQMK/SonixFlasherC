@@ -1,9 +1,9 @@
 #ifndef SONIXFLASHER_HID_IO_H
 #define SONIXFLASHER_HID_IO_H
 
-#include <hidapi.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <usb_device.h>
 
 /* HID Commands - ISP Protocol v9 */
 #define CMD_BASE 0x55AA
@@ -16,10 +16,12 @@
 #define CMD_VERIFY(x) ((CMD_BASE << 8) | (x))
 #define CMD_ACK 0xFAFAFAFA
 
-bool hid_send_report(hid_device *dev, const uint8_t *data, size_t len);
-bool hid_recv_report(hid_device *dev, uint8_t *data, size_t len,
+#define HID_WAIT_SEC 3
+
+bool hid_send_report(usb_device_t *dev, const uint8_t *data, size_t len);
+bool hid_recv_report(usb_device_t *dev, uint8_t *data, size_t len,
                      uint32_t expected_cmd);
-bool hid_send_payload(hid_device *dev, const uint8_t *data, size_t len,
+bool hid_send_payload(usb_device_t *dev, const uint8_t *data, size_t len,
                       size_t current, size_t total);
 
 #endif /* SONIXFLASHER_HID_IO_H */

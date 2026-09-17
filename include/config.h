@@ -15,14 +15,11 @@
 #include <limits.h>
 #endif
 
-#include <hidapi.h>
-
 /* Protocol Constants */
 #define REPORT_SIZE 64
 #define MAX_ATTEMPTS 5
 #define RETRY_DELAY_MS 100
 #define IO_DELAY_SEC 1
-#define HID_WAIT_SEC 3
 #define FLASH_CONFIRM_DELAY_SEC 5
 
 /* Firmware Constraints */

@@ -1,13 +1,13 @@
 #ifndef SONIXFLASHER_TYPES_H
 #define SONIXFLASHER_TYPES_H
 
-#include <hidapi.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <usb_device.h>
 
 /* Device State */
 typedef struct {
-  hid_device *handle;
+  usb_device_t *handle;
   uint16_t vid;
   uint16_t pid;
   int chip_family;
