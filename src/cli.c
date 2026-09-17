@@ -27,6 +27,20 @@ static int parse_vid_pid(const char *str, uint16_t *vid, uint16_t *pid) {
   return -1;
 }
 
+static bool parse_reboot_type(const char *str, const char **type) {
+  if (!str || !type)
+    return false;
+
+  if (strcmp(str, "sonix") == 0 || strcmp(str, "evision") == 0 ||
+      strcmp(str, "hfd") == 0) {
+    *type = str;
+    return true;
+  }
+
+  log_error("Invalid reboot type: %s (expected sonix, evision, or hfd)", str);
+  return false;
+}
+
 void cli_print_devices(void) {
   printf("Supported devices:\n");
   printf("+-----------------+-------+-------+\n");
@@ -57,7 +71,7 @@ void cli_print_usage(const char *prog_name) {
   printf("  -o, --offset ADDR        Flash offset (default: 0)\n");
   printf("  -j, --jumploader         Flash jumploader instead of firmware\n");
   printf("  -r, --reboot TYPE        Request reboot before flashing "
-         "(sonix/evision/hfd)\n");
+         "(sonix/evision/hfd default: sonix)\n");
   printf("  -k, --no-offset-check    Skip offset validation for F26X\n");
   printf("  -d, --debug              Enable debug output\n");
   printf("  -l, --list-devices       List supported devices\n");
@@ -77,13 +91,12 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
   /* Initialize defaults */
   memset(args, 0, sizeof(cli_args_t));
   args->flash.offset = 0;
-  args->reboot.type = "sonix";
 
   static struct option opts[] = {{"vid-pid", required_argument, NULL, 'v'},
                                  {"file", required_argument, NULL, 'f'},
                                  {"offset", required_argument, NULL, 'o'},
                                  {"jumploader", no_argument, NULL, 'j'},
-                                 {"reboot", required_argument, NULL, 'r'},
+                                 {"reboot", no_argument, NULL, 'r'},
                                  {"no-offset-check", no_argument, NULL, 'k'},
                                  {"debug", no_argument, NULL, 'd'},
                                  {"list-devices", no_argument, NULL, 'l'},
@@ -92,7 +105,7 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
                                  {NULL, 0, NULL, 0}};
 
   int c, idx = 0;
-  while ((c = getopt_long(argc, argv, "v:f:o:jr:kd?lVh", opts, &idx)) != -1) {
+  while ((c = getopt_long(argc, argv, "v:f:o:jrkd?lVh", opts, &idx)) != -1) {
     switch (c) {
     case 'v':
       if (parse_vid_pid(optarg, &args->vid, &args->pid) != 0)
@@ -112,8 +125,15 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
       break;
 
     case 'r':
-      args->reboot.type = optarg;
       args->reboot.requested = true;
+      args->reboot.type = "sonix";
+
+      if (optind < argc && argv[optind][0] != '-') {
+        if (!parse_reboot_type(argv[optind], &args->reboot.type))
+          return false;
+
+        optind++;
+      }
       break;
 
     case 'k':
