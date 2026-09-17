@@ -18,6 +18,71 @@ static void cleanup_and_exit(device_t *dev, char *file_path, int code) {
   exit(code);
 }
 
+static int run_user_mode(cli_args_t *args) {
+  device_t dev = {0};
+
+  if (!device_open(&dev, args->vid, args->pid)) {
+    cleanup_and_exit(&dev, NULL, 1);
+  }
+
+  /* Best-effort protocol init; a device already stuck in bootloader may
+   * not answer every command the same way, but we still want the FW
+   * version query so device_reboot_to_user_mode() has a valid handle. */
+  if (!device_init_protocol(&dev, &args->reboot)) {
+    log_warn("Protocol init failed, attempting reboot anyway");
+  }
+
+  if (!device_reboot_to_user_mode(&dev)) {
+    log_error("Failed to reboot device to user mode");
+    cleanup_and_exit(&dev, NULL, 1);
+  }
+
+  log_info("Device rebooted to user mode");
+  cleanup_and_exit(&dev, NULL, 0);
+  return 0;
+}
+
+static int run_info(cli_args_t *args) {
+  device_t dev = {0};
+
+  if (!device_open(&dev, args->vid, args->pid)) {
+    cleanup_and_exit(&dev, NULL, 1);
+  }
+
+  if (!device_init_protocol(&dev, &args->reboot)) {
+    log_error("Failed to query device info");
+    cleanup_and_exit(&dev, NULL, 1);
+  }
+
+  uint16_t device_checksum = 0;
+  bool checksum_valid = device_get_checksum(&dev, &device_checksum);
+
+  log_info("Device:          %s", chip_name(dev.chip_family));
+  log_info("VID:PID:         0x%04x:0x%04x", dev.vid, dev.pid);
+  log_info("ROM size:        %u KB", dev.rom_size_kb);
+  log_info("ROM pages:       %u", dev.rom_pages);
+  log_info("Max firmware:    %u bytes", dev.max_firmware_size);
+  log_info("Blank checksum:  0x%04x", dev.blank_checksum);
+  log_info("Security level:  CS%d", dev.security_level);
+  log_info("Code option:     0x%04x", dev.code_option);
+
+  if (checksum_valid) {
+    log_info("Flash checksum:  0x%04x", device_checksum);
+
+    if (device_checksum == dev.blank_checksum) {
+      log_info("Flash state:     blank");
+    } else {
+      log_info("Flash state:     programmed or unknown");
+    }
+  } else {
+    log_info("Flash checksum:  unavailable");
+    log_warn("Could not retrieve device checksum");
+  }
+
+  cleanup_and_exit(&dev, NULL, 0);
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     cli_print_usage(argv[0]);
@@ -30,6 +95,14 @@ int main(int argc, char *argv[]) {
   }
 
   log_init(args.verbose ? LOG_DEBUG : LOG_INFO);
+
+  if (args.mode == CLI_MODE_USER_MODE) {
+    return run_user_mode(&args);
+  }
+
+  if (args.mode == CLI_MODE_INFO) {
+    return run_info(&args);
+  }
 
   /* Resolve absolute path */
   char *abs_path = file_get_absolute_path(args.flash.file_path);

@@ -126,12 +126,16 @@ void cli_print_usage(const char *prog_name) {
   printf("\n");
   printf("Options:\n");
   printf("  -v, --vid-pid VID/PID    Device VID/PID (required)\n");
-  printf("  -f, --file PATH          Firmware file path (required)\n");
+  printf("  -f, --file PATH          Firmware file path (required to flash)\n");
   printf("  -o, --offset ADDR        Flash offset (default: 0)\n");
   printf("  -j, --jumploader         Flash jumploader instead of firmware\n");
   printf("  -r, --reboot TYPE        Request reboot before flashing "
          "(sonix/evision/hfd default: sonix)\n");
   printf("  -k, --no-offset-check    Skip offset validation for F26X\n");
+  printf("  -u, --user-mode          Reboot a device stuck in bootloader "
+         "back to user mode (no file needed)\n");
+  printf("  -i, --info               Print device/chip info and exit "
+         "(no file needed)\n");
   printf("  -d, --debug              Enable debug output\n");
   printf("  -l, --list-devices       List supported devices\n");
   printf("  -c, --list-connected     Scan and list connected Sonix devices\n");
@@ -142,6 +146,8 @@ void cli_print_usage(const char *prog_name) {
   printf("  %s -v 0c45/7040 -f firmware.bin\n", prog_name);
   printf("  %s -v 0c45/7040 -f bootloader.bin -j -o 0x200\n", prog_name);
   printf("  %s -v 0c45/7010 -f firmware.bin -r sonix\n", prog_name);
+  printf("  %s -v 0c45/7040 -u\n", prog_name);
+  printf("  %s -v 0c45/7040 -i\n", prog_name);
 }
 
 bool cli_parse(int argc, char *argv[], cli_args_t *args) {
@@ -150,6 +156,7 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
 
   /* Initialize defaults */
   memset(args, 0, sizeof(cli_args_t));
+  args->mode = CLI_MODE_FLASH;
   args->flash.offset = 0;
 
   static struct option opts[] = {{"vid-pid", required_argument, NULL, 'v'},
@@ -158,6 +165,8 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
                                  {"jumploader", no_argument, NULL, 'j'},
                                  {"reboot", no_argument, NULL, 'r'},
                                  {"no-offset-check", no_argument, NULL, 'k'},
+                                 {"user-mode", no_argument, NULL, 'u'},
+                                 {"info", no_argument, NULL, 'i'},
                                  {"debug", no_argument, NULL, 'd'},
                                  {"list-devices", no_argument, NULL, 'l'},
                                  {"list-connected", no_argument, NULL, 'c'},
@@ -166,7 +175,7 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
                                  {NULL, 0, NULL, 0}};
 
   int c, idx = 0;
-  while ((c = getopt_long(argc, argv, "v:f:o:jrkd?lcVh", opts, &idx)) != -1) {
+  while ((c = getopt_long(argc, argv, "v:f:o:jrkuid?lcVh", opts, &idx)) != -1) {
     switch (c) {
     case 'v':
       if (parse_vid_pid(optarg, &args->vid, &args->pid) != 0)
@@ -201,6 +210,14 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
       args->flash.skip_offset_check = true;
       break;
 
+    case 'u':
+      args->mode = CLI_MODE_USER_MODE;
+      break;
+
+    case 'i':
+      args->mode = CLI_MODE_INFO;
+      break;
+
     case 'd':
       args->verbose = true;
       break;
@@ -228,14 +245,24 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
     }
   }
 
-  /* Validate required arguments */
+  /* VID/PID always required regardless of mode */
   if (args->vid == 0 || args->pid == 0) {
     log_error("Missing or invalid VID/PID");
     return false;
   }
 
-  if (!args->flash.file_path) {
-    log_error("Missing firmware file path");
+  /* -u and -i are mutually exclusive with each other and with flashing */
+  if (args->mode == CLI_MODE_USER_MODE && args->flash.file_path) {
+    log_warn("Ignoring -f/--file: not needed for -u/--user-mode");
+  }
+
+  if (args->mode == CLI_MODE_INFO && args->flash.file_path) {
+    log_warn("Ignoring -f/--file: not needed for -i/--info");
+  }
+
+  /* -f only required when actually flashing */
+  if (args->mode == CLI_MODE_FLASH && !args->flash.file_path) {
+    log_error("Missing firmware file path (-f/--file)");
     return false;
   }
 

@@ -236,7 +236,7 @@ bool device_get_checksum(device_t *dev, uint16_t *checksum) {
   if (!dev || !dev->handle || !checksum)
     return false;
 
-  log_info("Getting device checksum");
+  log_info("Getting flash checksum");
 
   uint8_t buf[REPORT_SIZE];
   mem_zero(buf, sizeof(buf));
@@ -258,6 +258,7 @@ bool device_get_checksum(device_t *dev, uint16_t *checksum) {
 
   *checksum = mem_read_u16_le(buf, 8);
 
-  log_info("Device checksum: 0x%04x", *checksum);
+  log_info("Flash checksum: 0x%04x", *checksum);
+  log_info("\n");
   return true;
 }

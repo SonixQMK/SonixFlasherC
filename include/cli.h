@@ -12,7 +12,14 @@ typedef struct {
 extern const known_device_t KNOWN_DEVICES[];
 extern const size_t KNOWN_DEVICES_COUNT;
 
+typedef enum {
+  CLI_MODE_FLASH,     /* default: flash a firmware/jumploader file */
+  CLI_MODE_USER_MODE, /* -u: reboot a stuck-in-bootloader device to user mode */
+  CLI_MODE_INFO,      /* -i: print chip/security-level info, no flashing */
+} cli_mode_t;
+
 typedef struct {
+  cli_mode_t mode;
   flash_config_t flash;
   reboot_config_t reboot;
   uint16_t vid;
