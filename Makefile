@@ -2,14 +2,16 @@
 UNAME := $(shell uname -s)
 ARCH := $(shell uname -m)
 
-ifeq "$(UNAME)" "Darwin"
-	OS=macos
-endif
-ifeq "$(OS)" "Windows_NT"
-	OS=windows
-endif
-ifeq "$(UNAME)" "Linux"
-	OS=linux
+ifeq ($(UNAME),Darwin)
+	OS := macos
+else ifeq ($(UNAME),Linux)
+	OS := linux
+else ifneq ($(findstring MINGW,$(UNAME)),)
+	OS := windows
+else ifneq ($(findstring MSYS,$(UNAME)),)
+	OS := windows
+else ifeq ($(OS),Windows_NT)
+	OS := windows
 endif
 
 # deal with stupid Windows not having 'cc'
@@ -17,8 +19,8 @@ ifeq (default,$(origin CC))
   CC = gcc
 endif
 
-# Select USB backend: hidapi (default) or libusb
-BACKEND ?= hidapi
+# Select USB backend: libusb (default) or hidapi
+BACKEND ?= libusb
 
 #############  Mac
 ifeq "$(OS)" "macos"
@@ -93,7 +95,7 @@ clean:
 
 package: sonixflasher$(EXE)
 	@echo "Packaging up sonixflasher for '$(OS)-$(ARCH)'"
-	7z a sonixflasher-$(OS)-$(ARCH)-$(BACKEND).zip sonixflasher$(EXE)
+	7z a sonixflasher-$(OS)-$(ARCH).zip sonixflasher$(EXE)
 
 ############# lint
 

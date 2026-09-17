@@ -28,6 +28,6 @@
 
 /* Application Info */
 #define APP_NAME "sonixflasher"
-#define APP_VERSION "2.0.8"
+#define APP_VERSION "3.0.0"
 
 #endif /* SONIXFLASHER_CONFIG_H */
