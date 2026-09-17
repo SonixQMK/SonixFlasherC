@@ -2,6 +2,10 @@
 #include "config.h"
 #include "log.h"
 #include "mem.h"
+#include "usb_device.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 bool hid_send_report(usb_device_t *dev, const uint8_t *data, size_t len) {

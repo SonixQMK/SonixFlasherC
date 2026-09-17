@@ -2,8 +2,12 @@
 #include "checksum.h"
 #include "config.h"
 #include "log.h"
+#include "mem.h"
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -20,16 +24,18 @@ char *file_get_absolute_path(const char *path) {
 #ifdef _WIN32
   char buffer[MAX_PATH];
   if (GetFullPathName(path, MAX_PATH, buffer, NULL)) {
-    result = malloc(strlen(buffer) + 1);
+    size_t len = strlen(buffer);
+    result = malloc(len + 1);
     if (result)
-      strcpy(result, buffer);
+      mem_copy(result, buffer, len + 1);
   }
 #else
   char buffer[PATH_MAX];
   if (realpath(path, buffer)) {
-    result = malloc(strlen(buffer) + 1);
+    size_t len = strlen(buffer);
+    result = malloc(len + 1);
     if (result)
-      strcpy(result, buffer);
+      mem_copy(result, buffer, len + 1);
   }
 #endif
 
@@ -74,7 +80,7 @@ bool file_validate(const char *path) {
   }
 
   long size = file_get_size(fp);
-  fclose(fp);
+  (void)fclose(fp);
 
   if (size <= 0) {
     log_error("Invalid file size: %ld", size);
@@ -86,6 +92,25 @@ bool file_validate(const char *path) {
     return false;
   }
 
+  return true;
+}
+
+static bool file_calculate_checksum(FILE *fp, uint16_t *out_checksum) {
+  uint8_t buf[REPORT_SIZE];
+  uint16_t checksum = 0;
+  size_t bytes_read;
+
+  while (!feof(fp)) {
+    bytes_read = fread(buf, 1, REPORT_SIZE, fp);
+
+    if (bytes_read > 0)
+      checksum += checksum_calculate(buf, bytes_read);
+
+    if (ferror(fp))
+      return false;
+  }
+
+  *out_checksum = checksum;
   return true;
 }
 
@@ -102,7 +127,7 @@ bool file_prepare_image(const char *path, long *out_size,
 
   long size = file_get_size(fp);
   if (size < 0) {
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
@@ -111,7 +136,7 @@ bool file_prepare_image(const char *path, long *out_size,
     log_info("Padding jumploader to %d bytes", DEFAULT_OFFSET);
     if (truncate(path, DEFAULT_OFFSET) != 0) {
       log_error("Failed to truncate file");
-      fclose(fp);
+      (void)fclose(fp);
       return false;
     }
     size = DEFAULT_OFFSET;
@@ -124,7 +149,7 @@ bool file_prepare_image(const char *path, long *out_size,
     log_info("Aligning file: %ld -> %ld bytes", size, aligned_size);
     if (truncate(path, aligned_size) != 0) {
       log_error("Failed to align file");
-      fclose(fp);
+      (void)fclose(fp);
       return false;
     }
   }
@@ -132,19 +157,18 @@ bool file_prepare_image(const char *path, long *out_size,
   /* Calculate checksum in one pass */
   if (fseek(fp, 0, SEEK_SET) != 0) {
     log_error("Failed to reset file position for checksum");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
-  uint8_t buf[REPORT_SIZE];
   uint16_t checksum = 0;
-  size_t bytes_read = 0;
-
-  while ((bytes_read = fread(buf, 1, REPORT_SIZE, fp)) > 0) {
-    checksum += checksum_calculate(buf, bytes_read);
+  if (!file_calculate_checksum(fp, &checksum)) {
+    log_error("Failed to read file for checksum");
+    (void)fclose(fp);
+    return false;
   }
 
-  fclose(fp);
+  (void)fclose(fp);
   *out_size = aligned_size;
   *out_checksum = checksum;
   return true;

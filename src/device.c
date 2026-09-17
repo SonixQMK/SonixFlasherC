@@ -4,6 +4,9 @@
 #include "hid_io.h"
 #include "log.h"
 #include "mem.h"
+#include "types.h"
+#include "usb_device.h"
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 

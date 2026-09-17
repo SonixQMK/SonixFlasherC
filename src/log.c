@@ -1,5 +1,6 @@
 #include "log.h"
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 static log_level_t current_level = LOG_INFO;
@@ -11,7 +12,7 @@ void log_init(log_level_t level) { current_level = level; }
 
 static void log_end_raw_line(void) {
   if (raw_line_pending) {
-    fprintf(stderr, "\n");
+    (void)fprintf(stderr, "\n");
     raw_line_pending = false;
   }
 }
@@ -27,14 +28,14 @@ static void log_print(log_level_t level, const char *fmt, va_list args) {
 
   log_end_raw_line();
 
-  vfprintf(stderr, fmt, args);
-  fprintf(stderr, "\n");
+  (void)vfprintf(stderr, fmt, args);
+  (void)fprintf(stderr, "\n");
 }
 
 static void log_print_raw(const char *fmt, va_list args) {
-  fprintf(stderr, "\r" CLEAR_EOL);
-  vfprintf(stderr, fmt, args);
-  fflush(stderr);
+  (void)fprintf(stderr, "\r" CLEAR_EOL);
+  (void)vfprintf(stderr, fmt, args);
+  (void)fflush(stderr);
   raw_line_pending = true;
 }
 
@@ -98,15 +99,15 @@ void log_hex(const char *label, const uint8_t *data, size_t len) {
     size_t chunk =
         (len - offset < bytes_per_line) ? (len - offset) : bytes_per_line;
 
-    fprintf(stderr, "%s: ", label ? label : "Data");
+    (void)fprintf(stderr, "%s: ", label ? label : "Data");
     if (len > bytes_per_line) {
-      fprintf(stderr, "[0x%04zx] ", offset);
+      (void)fprintf(stderr, "[0x%04zx] ", offset);
     }
 
     for (size_t i = 0; i < chunk; i++) {
-      fprintf(stderr, "%02x", data[offset + i]);
+      (void)fprintf(stderr, "%02x", data[offset + i]);
     }
-    fprintf(stderr, "\n");
+    (void)fprintf(stderr, "\n");
 
     offset += chunk;
   }

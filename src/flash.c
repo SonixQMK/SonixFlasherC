@@ -2,9 +2,12 @@
 #include "checksum.h"
 #include "chip.h"
 #include "config.h"
+#include "device.h"
 #include "hid_io.h"
 #include "log.h"
 #include "mem.h"
+#include "types.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -40,6 +43,33 @@ bool flash_erase(device_t *dev) {
   }
 
   log_info("Flash erased successfully");
+  return true;
+}
+
+static bool flash_program_file(FILE *fp, device_t *dev, uint8_t *buf,
+                               uint16_t *checksum, uint32_t *last_chunk,
+                               uint32_t total_chunks) {
+  size_t chunk_num = 0;
+
+  while (!feof(fp)) {
+    size_t bytes_read = fread(buf, 1, REPORT_SIZE, fp);
+
+    if (bytes_read > 0) {
+      chunk_num++;
+      *checksum += checksum_calculate(buf, bytes_read);
+
+      if (bytes_read >= sizeof(uint32_t))
+        *last_chunk = mem_read_u32_le(buf, bytes_read - sizeof(uint32_t));
+
+      if (!hid_send_payload(dev->handle, buf, bytes_read, chunk_num,
+                            total_chunks))
+        return false;
+    }
+
+    if (ferror(fp))
+      return false;
+  }
+
   return true;
 }
 
@@ -79,20 +109,20 @@ bool flash_program(device_t *dev, const flash_config_t *config) {
   /* Calculate number of reports */
   if (fseek(fp, 0, SEEK_END) != 0) {
     log_error("Failed to seek firmware file");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
   long fw_size = ftell(fp);
   if (fw_size <= 0) {
     log_error("Invalid firmware size");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
   if (fseek(fp, 0, SEEK_SET) != 0) {
     log_error("Failed to rewind firmware file");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
@@ -100,20 +130,20 @@ bool flash_program(device_t *dev, const flash_config_t *config) {
   size_t total_chunks = (fw_size_bytes + REPORT_SIZE - 1) / REPORT_SIZE;
   if (total_chunks > UINT32_MAX) {
     log_error("Firmware has too many chunks");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
   mem_write_u32_le(buf + 8, (uint32_t)total_chunks);
 
   if (!hid_send_report(dev->handle, buf, REPORT_SIZE)) {
     log_error("Failed to enable program mode");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
   if (!hid_recv_report(dev->handle, buf, REPORT_SIZE, CMD_ENABLE_PROGRAM)) {
     log_error("Program mode verification failed");
-    fclose(fp);
+    (void)fclose(fp);
     return false;
   }
 
@@ -122,29 +152,17 @@ bool flash_program(device_t *dev, const flash_config_t *config) {
 
   uint16_t checksum = 0;
   uint32_t last_chunk = 0;
-  size_t bytes_read = 0;
-  size_t chunk_num = 0;
 
   mem_zero(buf, sizeof(buf));
-  while ((bytes_read = fread(buf, 1, REPORT_SIZE, fp)) > 0) {
-    chunk_num++;
-    checksum += checksum_calculate(buf, bytes_read);
 
-    if (bytes_read >= sizeof(uint32_t)) {
-      last_chunk = mem_read_u32_le(buf, bytes_read - sizeof(uint32_t));
-    }
-
-    if (!hid_send_payload(dev->handle, buf, bytes_read, chunk_num,
-                          total_chunks)) {
-      log_error("Failed to program data");
-      fclose(fp);
-      return false;
-    }
-
-    mem_zero(buf, sizeof(buf));
+  if (!flash_program_file(fp, dev, buf, &checksum, &last_chunk,
+                          (uint32_t)total_chunks)) {
+    log_error("Failed to program data");
+    (void)fclose(fp);
+    return false;
   }
 
-  fclose(fp);
+  (void)fclose(fp);
   log_info("File checksum: 0x%04x", checksum);
 
   /* Verify programming complete */

@@ -1,7 +1,8 @@
 #include "chip.h"
-#include "config.h"
 #include "log.h"
-#include "mem.h"
+#include "types.h"
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
   int family;

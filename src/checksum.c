@@ -1,4 +1,6 @@
 #include "checksum.h"
+#include <stddef.h>
+#include <stdint.h>
 
 uint16_t checksum_calculate(const uint8_t *data, size_t len) {
   if (!data || len == 0)

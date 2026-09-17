@@ -1,4 +1,3 @@
-#include "checksum.h"
 #include "chip.h"
 #include "cli.h"
 #include "config.h"
@@ -7,6 +6,7 @@
 #include "flash.h"
 #include "log.h"
 #include "types.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 

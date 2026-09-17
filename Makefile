@@ -76,6 +76,7 @@ SRCS := $(filter-out src/usb_device_hidapi.c src/usb_device_libusb.c,$(wildcard 
 OBJS := $(SRCS:.c=.o)
 
 CFLAGS += -Wall -Iinclude
+CLANG ?= clang
 
 all: sonixflasher
 	@echo "Built with BACKEND=$(BACKEND)"
@@ -93,3 +94,34 @@ clean:
 package: sonixflasher$(EXE)
 	@echo "Packaging up sonixflasher for '$(OS)-$(ARCH)'"
 	7z a sonixflasher-$(OS)-$(ARCH)-$(BACKEND).zip sonixflasher$(EXE)
+
+############# lint
+
+WARNINGS = \
+	-Wall \
+	-Wextra \
+	-Wpedantic \
+	-Werror \
+	-Wmissing-prototypes \
+	-Wstrict-prototypes \
+	-Wmissing-declarations \
+	-Wold-style-definition \
+	-Wshadow \
+	-Wformat=2 \
+	-Wundef \
+	-Wvla \
+	-Wwrite-strings \
+	-Wcast-qual \
+	-Wpointer-arith \
+	-Wconversion \
+	-Wsign-conversion \
+	-Wdouble-promotion \
+	-Wnull-dereference
+
+.PHONY: lint-compile
+lint-compile:
+	@echo "Syntax-checking with $(CLANG) (BACKEND=$(BACKEND))..."
+	@for src in $(SRCS); do \
+		echo "  $$src"; \
+		$(CLANG) $(CFLAGS) $(WARNINGS) -fsyntax-only $$src || exit 1; \
+	done

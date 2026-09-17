@@ -1,9 +1,9 @@
 #include "config.h"
-#include "log.h"
 #include "mem.h"
 #include "usb_device.h"
 
 #include <libusb-1.0/libusb.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -49,8 +49,8 @@ static void set_error(usb_device_t *dev, const char *message, int result) {
   if (!dev)
     return;
 
-  snprintf(dev->error, sizeof(dev->error), "%s: %s", message,
-           libusb_error_name(result));
+  (void)snprintf(dev->error, sizeof(dev->error), "%s: %s", message,
+                 libusb_error_name(result));
 }
 
 bool usb_device_is_present(uint16_t vid, uint16_t pid) {
@@ -92,13 +92,15 @@ static int feature_report_transfer(usb_device_t *dev, uint8_t request_type,
                                    uint8_t request, uint8_t *data, size_t len) {
   if (!dev || !dev->handle || !data || len == 0) {
     if (dev)
-      snprintf(dev->error, sizeof(dev->error), "invalid USB device or data");
+      (void)snprintf(dev->error, sizeof(dev->error),
+                     "invalid USB device or data");
     return -1;
   }
 
   if (len > REPORT_SIZE + 1) {
-    snprintf(dev->error, sizeof(dev->error),
-             "feature report too large: %zu (max %d)", len, REPORT_SIZE + 1);
+    (void)snprintf(dev->error, sizeof(dev->error),
+                   "feature report too large: %zu (max %d)", len,
+                   REPORT_SIZE + 1);
     return -1;
   }
 
@@ -231,8 +233,8 @@ int usb_device_write(usb_device_t *dev, const uint8_t *data, size_t len) {
   }
 
   if (!data || len == 0 || len > REPORT_SIZE + 1) {
-    snprintf(dev->error, sizeof(dev->error),
-             "invalid write length: %zu (max %d)", len, REPORT_SIZE + 1);
+    (void)snprintf(dev->error, sizeof(dev->error),
+                   "invalid write length: %zu (max %d)", len, REPORT_SIZE + 1);
     return -1;
   }
 
@@ -250,8 +252,8 @@ int usb_device_read(usb_device_t *dev, uint8_t *data, size_t len) {
   }
 
   if (!data || len == 0 || len > REPORT_SIZE + 1) {
-    snprintf(dev->error, sizeof(dev->error),
-             "invalid read length: %zu (max %d)", len, REPORT_SIZE + 1);
+    (void)snprintf(dev->error, sizeof(dev->error),
+                   "invalid read length: %zu (max %d)", len, REPORT_SIZE + 1);
     return -1;
   }
 

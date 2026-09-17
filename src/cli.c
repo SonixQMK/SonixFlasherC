@@ -1,9 +1,10 @@
 #include "cli.h"
-#include "chip.h"
 #include "config.h"
 #include "device.h"
 #include "log.h"
+#include "usb_device.h"
 #include <getopt.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,21 +13,31 @@ static int parse_vid_pid(const char *str, uint16_t *vid, uint16_t *pid) {
   if (!str || !vid || !pid)
     return -1;
 
-  unsigned int parsed_vid;
-  unsigned int parsed_pid;
-  char extra;
+  char *end;
+  unsigned long parsed_vid = strtoul(str, &end, 16);
 
-  if (sscanf(str, "%x/%x%c", &parsed_vid, &parsed_pid, &extra) == 2 ||
-      sscanf(str, "%x:%x%c", &parsed_vid, &parsed_pid, &extra) == 2) {
-    if (parsed_vid <= UINT16_MAX && parsed_pid <= UINT16_MAX) {
-      *vid = (uint16_t)parsed_vid;
-      *pid = (uint16_t)parsed_pid;
-      return 0;
-    }
+  if (end == str || (*end != '/' && *end != ':')) {
+    log_error("Invalid VID/PID format: %s (expected XXXX/XXXX)", str);
+    return -1;
   }
 
-  log_error("Invalid VID/PID format: %s (expected XXXX/XXXX)", str);
-  return -1;
+  char *pid_start = end + 1;
+  unsigned long parsed_pid = strtoul(pid_start, &end, 16);
+
+  if (end == pid_start || *end != '\0') {
+    log_error("Invalid VID/PID format: %s (expected XXXX/XXXX)", str);
+    return -1;
+  }
+
+  if (parsed_vid > UINT16_MAX || parsed_pid > UINT16_MAX) {
+    log_error("Invalid VID/PID value: %s", str);
+    return -1;
+  }
+
+  *vid = (uint16_t)parsed_vid;
+  *pid = (uint16_t)parsed_pid;
+
+  return 0;
 }
 
 static bool parse_reboot_type(const char *str, const char **type) {

@@ -1,4 +1,7 @@
 #include "mem.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 void mem_zero(void *dst, size_t len) {
   if (!dst)

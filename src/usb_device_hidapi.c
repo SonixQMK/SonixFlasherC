@@ -2,6 +2,7 @@
 #include "usb_device.h"
 
 #include <hidapi.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
