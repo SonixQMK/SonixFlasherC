@@ -11,6 +11,7 @@ typedef struct {
   uint16_t vid;
   uint16_t pid;
   int chip_family;
+  uint8_t chip_variant;
   int security_level;
   uint16_t rom_size_kb;
   uint16_t rom_pages;

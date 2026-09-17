@@ -49,6 +49,7 @@
 #define BLANK_CHECKSUM_F240C 0x0000
 
 bool chip_identify(device_t *dev, const uint8_t *response);
+const char *chip_display_name(const device_t *dev);
 const char *chip_name(int family);
 int cs_value_to_level(uint16_t cs_value);
 #endif /* SONIXFLASHER_CHIP_H */

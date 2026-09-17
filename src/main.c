@@ -57,7 +57,7 @@ static int run_info(cli_args_t *args) {
   uint16_t device_checksum = 0;
   bool checksum_valid = device_get_checksum(&dev, &device_checksum);
 
-  log_info("Device:          %s", chip_name(dev.chip_family));
+  log_info("Device:          %s", chip_display_name(&dev));
   log_info("VID:PID:         0x%04x:0x%04x", dev.vid, dev.pid);
   log_info("ROM size:        %u KB", dev.rom_size_kb);
   log_info("ROM pages:       %u", dev.rom_pages);
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
     cleanup_and_exit(&dev, abs_path, 1);
   }
 
-  log_info("Device initialized: %s", chip_name(dev.chip_family));
+  log_info("Device initialized: %s", chip_display_name(&dev));
 
   for (int i = FLASH_CONFIRM_DELAY_SEC; i > 0; i--) {
     log_raw("Starting flash in %d seconds...", i);

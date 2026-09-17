@@ -1,12 +1,11 @@
 #include "chip.h"
 #include "log.h"
-#include "types.h"
 #include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
   int family;
-  uint16_t variant;
+  uint8_t variant;
   uint16_t rom_size_kb;
   uint16_t rom_pages;
   uint16_t cs_level_0;
@@ -38,12 +37,13 @@ static bool apply_profile(device_t *dev, const chip_profile_t *profile) {
   if (!dev || !profile)
     return false;
 
+  dev->chip_family = profile->family;
+  dev->chip_variant = profile->variant;
   dev->rom_size_kb = profile->rom_size_kb;
   dev->rom_pages = profile->rom_pages;
   dev->cs_level_0 = profile->cs_level_0;
   dev->blank_checksum = profile->blank_checksum;
-  dev->max_firmware_size = (uint32_t)profile->rom_size_kb * 1024;
-  dev->chip_family = profile->family;
+  dev->max_firmware_size = (uint32_t)profile->rom_size_kb * 1024U;
 
   return true;
 }
@@ -52,34 +52,34 @@ bool chip_identify(device_t *dev, const uint8_t *response) {
   if (!dev || !response)
     return false;
 
-  uint8_t family_version = response[8];
-  uint8_t chip_version = response[9];
-  uint8_t chip_revision = response[11];
+  const uint8_t family_version = response[8];
+  const uint8_t chip_version = response[9];
+  const uint8_t chip_revision = response[11];
 
   if (family_version != 32) {
-    log_error("Unsupported family version: %d", family_version);
+    log_error("Unsupported family version: %hhu", family_version);
     return false;
   }
 
-  log_info("SN32 Detected");
-
-  /* Find matching profile */
   for (size_t i = 0; i < num_profiles; i++) {
     const chip_profile_t *profile = &profiles[i];
 
-    if (profile->family == chip_version) {
-      /* Check variant if applicable */
-      if (chip_version == CHIP_F240 && profile->variant != chip_revision) {
-        continue;
-      }
+    if ((uint8_t)profile->family != chip_version)
+      continue;
 
-      log_info("Chip %s identified", chip_name(profile->family));
-      return apply_profile(dev, profile);
+    if (profile->family == CHIP_F240 && profile->variant != chip_revision) {
+      continue;
     }
+
+    if (!apply_profile(dev, profile))
+      return false;
+
+    log_info("Chip %s identified", chip_display_name(dev));
+    return true;
   }
 
-  log_error("Unsupported chip version: %d.%d.%d", chip_version, 0,
-            chip_revision);
+  log_error("Unsupported chip version: %hhu.%hhu.%hhu", family_version,
+            chip_version, chip_revision);
   return false;
 }
 
@@ -100,6 +100,26 @@ const char *chip_name(int family) {
   default:
     return "Unknown";
   }
+}
+
+const char *chip_display_name(const device_t *dev) {
+  if (!dev)
+    return "Unknown";
+
+  if (dev->chip_family == CHIP_F240) {
+    switch (dev->chip_variant) {
+    case 1:
+      return "SN32F22X";
+    case 2:
+      return "SN32F23X";
+    case 3:
+      return "SN32F24X";
+    default:
+      return "Unknown SN32F24X variant";
+    }
+  }
+
+  return chip_name(dev->chip_family);
 }
 
 int cs_value_to_level(uint16_t cs_value) {
