@@ -1,5 +1,6 @@
 #include "config.h"
 #include "log.h"
+#include "mem.h"
 #include "usb_device.h"
 
 #include <libusb-1.0/libusb.h>
@@ -18,10 +19,14 @@
  * SET_REPORT: host -> device
  */
 #define HID_GET_REPORT_REQUEST_TYPE                                            \
-  (LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE)
+  ((uint8_t)((uint8_t)LIBUSB_ENDPOINT_IN |                                     \
+             (uint8_t)LIBUSB_REQUEST_TYPE_CLASS |                              \
+             (uint8_t)LIBUSB_RECIPIENT_INTERFACE))
 
 #define HID_SET_REPORT_REQUEST_TYPE                                            \
-  (LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE)
+  ((uint8_t)((uint8_t)LIBUSB_ENDPOINT_OUT |                                    \
+             (uint8_t)LIBUSB_REQUEST_TYPE_CLASS |                              \
+             (uint8_t)LIBUSB_RECIPIENT_INTERFACE))
 
 /*
  * One libusb context for the program lifecycle:
@@ -91,8 +96,9 @@ static int feature_report_transfer(usb_device_t *dev, uint8_t request_type,
     return -1;
   }
 
-  if (len > UINT16_MAX) {
-    snprintf(dev->error, sizeof(dev->error), "feature report is too large");
+  if (len > REPORT_SIZE + 1) {
+    snprintf(dev->error, sizeof(dev->error),
+             "feature report too large: %zu (max %d)", len, REPORT_SIZE + 1);
     return -1;
   }
 
@@ -220,13 +226,64 @@ void usb_device_close(usb_device_t *dev) {
 }
 
 int usb_device_write(usb_device_t *dev, const uint8_t *data, size_t len) {
+  if (!dev) {
+    return -1;
+  }
+
+  if (!data || len == 0 || len > REPORT_SIZE + 1) {
+    snprintf(dev->error, sizeof(dev->error),
+             "invalid write length: %zu (max %d)", len, REPORT_SIZE + 1);
+    return -1;
+  }
+
+  uint8_t buf[REPORT_SIZE + 1];
+  mem_zero(buf, sizeof(buf));
+  mem_copy(buf, data, len);
+
   return feature_report_transfer(dev, HID_SET_REPORT_REQUEST_TYPE,
-                                 HID_REQUEST_SET_REPORT, (uint8_t *)data, len);
+                                 HID_REQUEST_SET_REPORT, buf, len);
 }
 
 int usb_device_read(usb_device_t *dev, uint8_t *data, size_t len) {
-  return feature_report_transfer(dev, HID_GET_REPORT_REQUEST_TYPE,
-                                 HID_REQUEST_GET_REPORT, data, len);
+  if (!dev) {
+    return -1;
+  }
+
+  if (!data || len == 0 || len > REPORT_SIZE + 1) {
+    snprintf(dev->error, sizeof(dev->error),
+             "invalid read length: %zu (max %d)", len, REPORT_SIZE + 1);
+    return -1;
+  }
+
+  /* libusb GET_REPORT path expects the report ID to be present in the
+   * first byte, but the transfer helper may strip it out when report_id ==
+   * 0x00. We keep the public API consistent with hidapi's REPORT_SIZE+1
+   * semantics. */
+  uint8_t buf[REPORT_SIZE + 1];
+  mem_zero(buf, sizeof(buf));
+
+  int result = feature_report_transfer(dev, HID_GET_REPORT_REQUEST_TYPE,
+                                       HID_REQUEST_GET_REPORT, buf, len);
+
+  if (result < 0) {
+    return result;
+  }
+
+  /* feature_report_transfer() may have incremented result to account for the
+   * stripped report ID; undo that so the caller sees the original payload
+   * length while preserving the same semantics as hidapi. */
+  if (result > 0 && result <= (int)len) {
+    mem_copy(data, buf, (size_t)result);
+    return result;
+  }
+
+  if (result > (int)len) {
+    /* report ID was reinserted, move data back after the 0x00 byte */
+    mem_copy(data, buf + 1, len);
+    return result;
+  }
+
+  return result;
 }
 
 const char *usb_device_error(usb_device_t *dev) {

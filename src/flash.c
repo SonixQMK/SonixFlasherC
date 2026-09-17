@@ -77,18 +77,32 @@ bool flash_program(device_t *dev, const flash_config_t *config) {
   mem_write_u32_le(buf + 4, offset);
 
   /* Calculate number of reports */
-  long fw_size = ftell(fp);
-  fseek(fp, 0, SEEK_END);
-  fw_size = ftell(fp) - fw_size;
-  fseek(fp, 0, SEEK_SET);
+  if (fseek(fp, 0, SEEK_END) != 0) {
+    log_error("Failed to seek firmware file");
+    fclose(fp);
+    return false;
+  }
 
+  long fw_size = ftell(fp);
   if (fw_size <= 0) {
     log_error("Invalid firmware size");
     fclose(fp);
     return false;
   }
 
-  size_t total_chunks = (fw_size + REPORT_SIZE - 1) / REPORT_SIZE;
+  if (fseek(fp, 0, SEEK_SET) != 0) {
+    log_error("Failed to rewind firmware file");
+    fclose(fp);
+    return false;
+  }
+
+  size_t fw_size_bytes = (size_t)fw_size;
+  size_t total_chunks = (fw_size_bytes + REPORT_SIZE - 1) / REPORT_SIZE;
+  if (total_chunks > UINT32_MAX) {
+    log_error("Firmware has too many chunks");
+    fclose(fp);
+    return false;
+  }
   mem_write_u32_le(buf + 8, (uint32_t)total_chunks);
 
   if (!hid_send_report(dev->handle, buf, REPORT_SIZE)) {

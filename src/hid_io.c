@@ -24,7 +24,7 @@ bool hid_send_report(usb_device_t *dev, const uint8_t *data, size_t len) {
   log_hex("Sending", buf, len + 1);
 
   if (usb_device_write(dev, buf, len + 1) < 0) {
-    log_error("Failed to send HID report: %ls", usb_device_error(dev));
+    log_error("Failed to send HID report: %s", usb_device_error(dev));
     return false;
   }
 
@@ -50,7 +50,9 @@ bool hid_send_payload(usb_device_t *dev, const uint8_t *data, size_t len,
   mem_copy(buf + 1, data, len);
 
   /* Calculate progress */
-  double percent = (total > 0) ? (100.0 * current / total) : 0.0;
+  double percent =
+      (total > 0) ? (100.0 * (double)current / (double)total) : 0.0;
+
   log_debug("Sending payload: chunk %zu/%zu (%.1f%%) - %zu bytes", current,
             total, percent, len);
 
@@ -58,7 +60,7 @@ bool hid_send_payload(usb_device_t *dev, const uint8_t *data, size_t len,
   log_hex("  Data", data, len);
 
   if (usb_device_write(dev, buf, len + 1) < 0) {
-    log_error("Failed to send HID payload: %ls", usb_device_error(dev));
+    log_error("Failed to send HID payload: %s", usb_device_error(dev));
     return false;
   }
 
@@ -117,7 +119,7 @@ bool hid_recv_report(usb_device_t *dev, uint8_t *data, size_t len,
     }
 
     if (res < 0) {
-      log_raw("Device busy, retrying... (attempt %d/%d)\r", attempts + 1,
+      log_raw("Device busy, retrying... (attempt %d/%d)", attempts + 1,
               MAX_ATTEMPTS);
       attempts++;
       usleep(RETRY_DELAY_MS * 1000);

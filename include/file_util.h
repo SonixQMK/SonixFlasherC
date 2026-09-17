@@ -1,6 +1,7 @@
 #ifndef SONIXFLASHER_FILE_UTIL_H
 #define SONIXFLASHER_FILE_UTIL_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 

@@ -167,7 +167,7 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
       break;
 
     case 'o':
-      args->flash.offset = strtoul(optarg, NULL, 0);
+      args->flash.offset = (uint32_t)strtoul(optarg, NULL, 0);
       break;
 
     case 'j':

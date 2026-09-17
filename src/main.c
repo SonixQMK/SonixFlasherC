@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   log_info("Firmware: %s (size: %ld bytes, checksum: 0x%04x)",
            args.flash.file_path, prepared_size, firmware_checksum);
   log_info("Target device: VID:[0x%04x] PID:[0x%04x]", args.vid, args.pid);
-  log_info("");
+  log_info("\n");
 
   /* Open device */
   device_t dev = {0};
@@ -72,18 +72,18 @@ int main(int argc, char *argv[]) {
   log_info("Device initialized: %s", chip_name(dev.chip_family));
 
   for (int i = FLASH_CONFIRM_DELAY_SEC; i > 0; i--) {
-    log_raw("Starting flash in %d seconds...\r", i);
+    log_raw("Starting flash in %d seconds...", i);
     sleep(IO_DELAY_SEC);
   }
-  log_info("");
+  log_info("\n");
   log_info("Flashing now!");
-  log_info("");
+  log_info("\n");
 
   /* Reset code security to CS0 if needed */
   if (!device_set_code_security(&dev, dev.cs_level_0)) {
     cleanup_and_exit(&dev, abs_path, 1);
   }
-  log_info("");
+  log_info("\n");
   sleep(IO_DELAY_SEC);
 
   /* Erase flash */
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
       log_error("Erase verification failed");
       cleanup_and_exit(&dev, abs_path, 1);
     }
-    log_info("");
+    log_info("\n");
     sleep(IO_DELAY_SEC);
   }
 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
   if (!flash_program(&dev, &args.flash)) {
     cleanup_and_exit(&dev, abs_path, 1);
   }
-  log_info("");
+  log_info("\n");
   sleep(IO_DELAY_SEC);
 
   if (args.flash.offset == 0) {
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
       log_error("Program verification failed");
       cleanup_and_exit(&dev, abs_path, 1);
     }
-    log_info("");
+    log_info("\n");
     sleep(IO_DELAY_SEC);
   } else {
     /* Partial flash: print device checksum informational only */
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     if (device_get_checksum(&dev, &device_checksum)) {
       log_info("Partial flash (offset 0x%04x) - device checksum: 0x%04x",
                args.flash.offset, device_checksum);
-      log_info("");
+      log_info("\n");
     }
   }
 
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
   if (!device_reboot_to_user_mode(&dev)) {
     log_warn("Warning: Device reboot command may have failed");
   }
-  log_info("");
+  log_info("\n");
   log_info("=== FLASHING COMPLETED SUCCESSFULLY ===");
   sleep(IO_DELAY_SEC);
 

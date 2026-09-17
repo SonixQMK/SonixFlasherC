@@ -1,20 +1,41 @@
 #include "log.h"
 #include <stdarg.h>
+#include <stdio.h>
 
 static log_level_t current_level = LOG_INFO;
+static bool raw_line_pending = false;
+
+#define CLEAR_EOL "\033[K"
 
 void log_init(log_level_t level) { current_level = level; }
+
+static void log_end_raw_line(void) {
+  if (raw_line_pending) {
+    fprintf(stderr, "\n");
+    raw_line_pending = false;
+  }
+}
+
+static void log_print(log_level_t level, const char *fmt, va_list args)
+    PRINTF_LIKE(2, 0);
+
+static void log_print_raw(const char *fmt, va_list args) PRINTF_LIKE(1, 0);
 
 static void log_print(log_level_t level, const char *fmt, va_list args) {
   if (level > current_level)
     return;
+
+  log_end_raw_line();
+
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
 }
 
 static void log_print_raw(const char *fmt, va_list args) {
+  fprintf(stderr, "\r" CLEAR_EOL);
   vfprintf(stderr, fmt, args);
   fflush(stderr);
+  raw_line_pending = true;
 }
 
 void log_error(const char *fmt, ...) {
@@ -67,6 +88,8 @@ void log_hex(const char *label, const uint8_t *data, size_t len) {
     return;
   if (current_level < LOG_DEBUG)
     return;
+
+  log_end_raw_line();
 
   const size_t bytes_per_line = 32;
   size_t offset = 0;

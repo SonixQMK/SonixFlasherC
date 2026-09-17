@@ -110,7 +110,7 @@ static bool get_firmware_version(device_t *dev, uint8_t *buf) {
     if (hid_send_report(dev->handle, buf, REPORT_SIZE)) {
       break;
     }
-    log_raw("Failed to fetch version, retrying... (attempt %d/%d)\r",
+    log_raw("Failed to fetch version, retrying... (attempt %d/%d)",
             attempts + 1, MAX_ATTEMPTS);
     attempts++;
     sleep(HID_WAIT_SEC);
@@ -135,7 +135,7 @@ bool device_init_protocol(device_t *dev, const reboot_config_t *reboot) {
       log_error("Reboot request failed");
       return false;
     }
-    log_info("");
+    log_info("\n");
     sleep(IO_DELAY_SEC);
   }
 
