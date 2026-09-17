@@ -48,6 +48,33 @@ static void set_error(usb_device_t *dev, const char *message, int result) {
            libusb_error_name(result));
 }
 
+bool usb_device_is_present(uint16_t vid, uint16_t pid) {
+  if (!usb_context)
+    return false;
+
+  libusb_device **list = NULL;
+  ssize_t count = libusb_get_device_list(usb_context, &list);
+  if (count < 0)
+    return false;
+
+  bool found = false;
+
+  for (ssize_t i = 0; i < count; i++) {
+    struct libusb_device_descriptor desc;
+
+    if (libusb_get_device_descriptor(list[i], &desc) != 0)
+      continue;
+
+    if (desc.idVendor == vid && desc.idProduct == pid) {
+      found = true;
+      break;
+    }
+  }
+
+  libusb_free_device_list(list, 1);
+  return found;
+}
+
 /*
  * Match hidapi feature-report behavior:
  *

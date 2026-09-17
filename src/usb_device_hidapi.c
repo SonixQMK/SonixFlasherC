@@ -33,6 +33,13 @@ static void set_hid_error(usb_device_t *dev) {
   dev->error[converted] = '\0';
 }
 
+bool usb_device_is_present(uint16_t vid, uint16_t pid) {
+  struct hid_device_info *devs = hid_enumerate(vid, pid);
+  bool found = (devs != NULL);
+  hid_free_enumeration(devs);
+  return found;
+}
+
 bool usb_device_init(void) { return hid_init() == 0; }
 
 void usb_device_exit(void) {

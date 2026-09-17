@@ -1,5 +1,7 @@
 #include "cli.h"
+#include "chip.h"
 #include "config.h"
+#include "device.h"
 #include "log.h"
 #include <getopt.h>
 #include <stdio.h>
@@ -41,20 +43,66 @@ static bool parse_reboot_type(const char *str, const char **type) {
   return false;
 }
 
+const known_device_t KNOWN_DEVICES[] = {
+    {"SONIX SN32F22X", VID_SONIX, PID_SN22X},
+    {"SONIX SN32F23X", VID_SONIX, PID_SN23X},
+    {"SONIX SN32F24X", VID_SONIX, PID_SN24X},
+    {"SONIX SN32F24XB", VID_SONIX, PID_SN24XB},
+    {"SONIX SN32F24XC", VID_SONIX, PID_SN24XC},
+    {"SONIX SN32F26X", VID_SONIX, PID_SN26X},
+    {"SONIX SN32F28X", VID_SONIX, PID_SN28X},
+    {"SONIX SN32F29X", VID_SONIX, PID_SN29X},
+};
+
+const size_t KNOWN_DEVICES_COUNT =
+    sizeof(KNOWN_DEVICES) / sizeof(KNOWN_DEVICES[0]);
+
 void cli_print_devices(void) {
   printf("Supported devices:\n");
   printf("+-----------------+-------+-------+\n");
   printf("| Device          | VID   | PID   |\n");
   printf("+-----------------+-------+-------+\n");
-  printf("| SONIX SN32F22X  | 0c45  | 7900  |\n");
-  printf("| SONIX SN32F23X  | 0c45  | 7900  |\n");
-  printf("| SONIX SN32F24X  | 0c45  | 7900  |\n");
-  printf("| SONIX SN32F24XB | 0c45  | 7040  |\n");
-  printf("| SONIX SN32F24XC | 0c45  | 7160  |\n");
-  printf("| SONIX SN32F26X  | 0c45  | 7010  |\n");
-  printf("| SONIX SN32F28X  | 0c45  | 7120  |\n");
-  printf("| SONIX SN32F29X  | 0c45  | 7140  |\n");
+
+  for (size_t i = 0; i < KNOWN_DEVICES_COUNT; i++) {
+    printf("| %-15s | %04x  | %04x  |\n", KNOWN_DEVICES[i].name,
+           KNOWN_DEVICES[i].vid, KNOWN_DEVICES[i].pid);
+  }
+
   printf("+-----------------+-------+-------+\n");
+}
+
+void cli_print_connected_devices(void) {
+  printf("Scanning for connected Sonix devices...\n\n");
+
+  if (!usb_device_init()) {
+    log_error("USB initialization failed");
+    return;
+  }
+
+  bool any_found = false;
+
+  printf("+-----------------+-------+-------+\n");
+  printf("| Device          | VID   | PID   |\n");
+  printf("+-----------------+-------+-------+\n");
+
+  for (size_t i = 0; i < KNOWN_DEVICES_COUNT; i++) {
+    if (usb_device_is_present(KNOWN_DEVICES[i].vid, KNOWN_DEVICES[i].pid)) {
+      printf("| %-15s | %04x  | %04x  |\n", KNOWN_DEVICES[i].name,
+             KNOWN_DEVICES[i].vid, KNOWN_DEVICES[i].pid);
+      any_found = true;
+    }
+  }
+
+  printf("+-----------------+-------+-------+\n");
+
+  if (!any_found) {
+    printf("\nNo supported devices found.\n");
+    printf("If your device is in normal mode (not bootloader), it may not "
+           "be detectable.\n");
+    printf("Try requesting a reboot with -r <type> once connected.\n");
+  }
+
+  usb_device_exit();
 }
 
 void cli_print_version(void) { printf("%s %s\n", APP_NAME, APP_VERSION); }
@@ -75,6 +123,7 @@ void cli_print_usage(const char *prog_name) {
   printf("  -k, --no-offset-check    Skip offset validation for F26X\n");
   printf("  -d, --debug              Enable debug output\n");
   printf("  -l, --list-devices       List supported devices\n");
+  printf("  -c, --list-connected     Scan and list connected Sonix devices\n");
   printf("  -V, --version            Print version\n");
   printf("  -h, --help               Print this help\n");
   printf("\n");
@@ -100,12 +149,13 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
                                  {"no-offset-check", no_argument, NULL, 'k'},
                                  {"debug", no_argument, NULL, 'd'},
                                  {"list-devices", no_argument, NULL, 'l'},
+                                 {"list-connected", no_argument, NULL, 'c'},
                                  {"version", no_argument, NULL, 'V'},
                                  {"help", no_argument, NULL, 'h'},
                                  {NULL, 0, NULL, 0}};
 
   int c, idx = 0;
-  while ((c = getopt_long(argc, argv, "v:f:o:jrkd?lVh", opts, &idx)) != -1) {
+  while ((c = getopt_long(argc, argv, "v:f:o:jrkd?lcVh", opts, &idx)) != -1) {
     switch (c) {
     case 'v':
       if (parse_vid_pid(optarg, &args->vid, &args->pid) != 0)
@@ -146,6 +196,11 @@ bool cli_parse(int argc, char *argv[], cli_args_t *args) {
 
     case 'l':
       cli_print_devices();
+      exit(0);
+      break;
+
+    case 'c':
+      cli_print_connected_devices();
       exit(0);
       break;
 

@@ -24,6 +24,8 @@ typedef struct usb_device usb_device_t;
 bool usb_device_init(void);
 void usb_device_exit(void);
 
+bool usb_device_is_present(uint16_t vid, uint16_t pid);
+
 usb_device_t *usb_device_open(uint16_t vid, uint16_t pid);
 void usb_device_close(usb_device_t *dev);
 

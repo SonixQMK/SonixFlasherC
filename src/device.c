@@ -48,7 +48,7 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
     return false;
 
   if (!usb_device_init()) {
-    log_error("HID initialization failed");
+    log_error("USB initialization failed");
     return false;
   }
 
@@ -56,6 +56,15 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
   uint8_t attempts = 0;
 
   while (attempts < MAX_ATTEMPTS) {
+    if (!usb_device_is_present(vid, pid)) {
+      log_raw("Device not found (VID:[0x%04x] PID:[0x%04x]), retrying... "
+              "(attempt %d/%d)\r",
+              vid, pid, attempts + 1, MAX_ATTEMPTS);
+      attempts++;
+      sleep(HID_WAIT_SEC);
+      continue;
+    }
+
     dev->handle = usb_device_open(vid, pid);
     if (dev->handle) {
       log_info("Device opened successfully");
@@ -64,16 +73,17 @@ bool device_open(device_t *dev, uint16_t vid, uint16_t pid) {
       return true;
     }
 
-    log_raw("Device not found, retrying... (attempt %d/%d)\r", attempts + 1,
-            MAX_ATTEMPTS);
+    log_raw("Device present but failed to open (permissions?), retrying... "
+            "(attempt %d/%d)\r",
+            attempts + 1, MAX_ATTEMPTS);
     attempts++;
     sleep(HID_WAIT_SEC);
   }
+
   usb_device_exit();
   log_error("Failed to open device after %d attempts", MAX_ATTEMPTS);
   return false;
 }
-
 void device_close(device_t *dev) {
   if (!dev)
     return;
