@@ -1,13 +1,19 @@
 # Sonix Flasher C
 
-A CLI-based Flasher for Sonix SN32F2xx MCUs.
+A CLI-based flasher and diagnostics tool for Sonix SN32F2xx USB bootloader devices.
 
 ## Description
 
-This flasher is aimed for advanced users that don't need a GUI. If you require a GUI please use: [Sonix-Flasher](https://github.com/SonixQMK/sonix-flasher).
+This project is intended for advanced users who want a lightweight, dependency-minimal command-line tool without a GUI.
 
 Features:
 
+- [x] HID-based USB flashing
+- [x] Firmware and jumploader programming
+- [x] Reboot to bootloader from OEM firmware via supported reboot types
+- [x] Reboot to user mode from bootloader
+- [x] Chip identification
+- [x] Device info reporting: chip family, memory size, security level, checksum
 - [x] Minimal dependencies
 - [x] Cross-platform
 - [x] Faster
@@ -17,40 +23,65 @@ Features:
 ### Dependencies
 
 Clone this repository:
-```
+
+```bash
 git clone https://github.com/SonixQMK/SonixFlasherC
 ```
 
-[hidapi](https://github.com/libusb/hidapi) is a prequisite.
-If using windows, please install MinGW
+The default USB backend is `libusb`.
+
+The project also supports `hidapi` for legacy compatibility. The backend can be selected when building with the BACKEND Make variable.
+
+You will need the development package for the selected backend and pkg-config.
 
 ### Compiling
 
-Compile using:
+Build using the default libusb backend:
 
-```
-make sonixflasher
+```bash
+make
 ```
 
+or:
+```bash
+make BACKEND=libusb
+```
+
+To build using the legacy hidapi backend:
+
+```bash
+make BACKEND=hidapi
+```
+
+### Firmware File Format
+
+The flasher currently accepts **raw binary (`.bin`) firmware images only**.
+
+Intel HEX (`.hex`) files are not supported directly. Convert them to a raw `.bin` file before flashing.
 
 ### Running the flasher
 
-```
-./sonixflasher
+```bash
+./sonixflasher [OPTIONS]
 ```
 
-#### Command List:
+Firmware and jumploader files must be provided as `.bin` files.
 
-- `--vidpid -v`      Set VID and PID for the device to flash.
-- `--offset -o`      Set flashing offset (default: 0).
-- `--file -f`        Binary of the firmware to flash (*.bin extension).
-- `--jumploader -j`  Define if flashing a jumploader.
-- `--reboot -r`      Request bootloader reboot in OEM firmware (options: sonix, evision, hfd).
-- `--debug -d`       Enable debug mode.
-- `--list-vidpid -l` Display supported VID/PID pairs.
-- `--nooffset -k`    Disable offset checks.
-- `--version -V`     Print version information.
-- `--help -h`        Show this help message.
+### Supported options
+
+- `-v, --vid-pid VID/PID`    Device VID/PID in `XXXX/XXXX` format (required unless using a list-only command)
+- `-f, --file PATH`          Firmware `.bin` file path (required for flashing)
+- `-o, --offset ADDR`        Flash offset (default: `0`)
+- `-j, --jumploader`         Flash a jumploader `.bin` image instead of a normal firmware image
+- `-r, --reboot TYPE`        Request bootloader reboot before flashing (`sonix`, `evision`, or `hfd`)
+- `-k, --no-offset-check`    Skip offset validation for F26X flows
+- `-u, --user-mode`          Reboot a device back to user mode from bootloader state (no file required)
+- `-i, --info`               Print chip/device info and flash checksum (no file required)
+- `-d, --debug`              Enable debug output
+- `-l, --list-devices`       List all supported devices and their VID/PID pairs
+- `-c, --list-connected`     Scan and list connected supported devices
+- `-V, --version`            Print version information
+- `-h, --help`               Show command help
 
 #### ISP Bootloader Mode Defaults:
 
@@ -65,24 +96,57 @@ make sonixflasher
 | SONIX SN32F28x  | 0x0C45 | 0x7120 |
 | SONIX SN32F29x  | 0x0C45 | 0x7140 |
 
-Notice that some devices support flashing while booted. In that case, use
-```
---reboot
-```
-to expose the ISP mode
+Notice that some devices support flashing while running their OEM firmware. In those cases, use `--reboot` to expose the ISP mode.
 
 ## Usage Examples
 
-- **Flash jumploader to device with VID/PID 0x0c45/0x7040:**
+### Flash a normal firmware image
 
-  ```
-  sonixflasher --vidpid 0c45/7040 --file fw.bin -j
-  ```
-- **Flash firmware to device with VID/PID 0x0c45/0x7040 and offset 0x200:**
+```bash
+./sonixflasher -v 0c45/7040 -f firmware.bin
+```
 
-  ```
-  sonixflasher --vidpid 0c45/7040 --file fw.bin -o 0x200
-  ```
+### Flash a jumploader image
+
+```bash
+./sonixflasher -v 0c45/7040 -f bootloader.bin -j
+```
+
+### Flash with an offset
+
+```bash
+./sonixflasher -v 0c45/7040 -f firmware.bin -o 0x200
+```
+
+### Request a reboot to bootloader before flashing
+
+```bash
+./sonixflasher -v 0c45/7040 -f firmware.bin -r sonix
+```
+
+### Reboot a device back to user mode
+
+```bash
+./sonixflasher -v 0c45/7040 -u
+```
+
+### Print device info and checksum
+
+```bash
+./sonixflasher -v 0c45/7040 -i
+```
+
+### List all supported devices
+
+```bash
+./sonixflasher -l
+```
+
+### List currently connected supported devices
+
+```bash
+./sonixflasher -c
+```
 
 ## License
 
