@@ -2,115 +2,282 @@ name: Make CI
 
 on:
   push:
-    branches: [ main ]
-  release:
-    types:
-      - published
+    branches: [main]
   pull_request:
-  workflow_dispatch:
-    
+  release:
+    types: [published]
+
 jobs:
-  build-linux:
+  validate-dynamic:
+    name: Dynamic build (${{ matrix.name }})
+    if: github.event_name != 'release'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: macOS (arm64)
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev
+
+      - name: macOS deps
+        if: matrix.os == 'macos-latest'
+        run: brew install libusb
+
+      - name: Windows deps
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
+            mingw-w64-ucrt-x86_64-cc
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-libusb
+
+      - name: Dynamic build
+        run: |
+          make clean
+          make
+
+  release-linux:
+    name: Release Linux
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
-  
-    - name: Install libudev and libhidapi
-      run: sudo apt-get install -y libudev-dev libhidapi-dev
-    
-    - name: Compile SonixFlasherC
-      run: |
-        make clean package
-    
-    - name: Find artifact files
-      id: find-files
-      run: |
-        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
-        files=$(cat artifact_files.txt)
-        echo "FILES=$files" >> $GITHUB_ENV
+      - uses: actions/checkout@v6
 
-    - uses: actions/upload-artifact@v7
-      with:
-        name: SonixFlasherC-Linux
-        path: ${{ env.FILES }}
-  
-  build-mac:
-    runs-on: macos-latest
-    env:
-      CPATH: /opt/homebrew/include
-      LIBRARY_PATH: /opt/homebrew/lib
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libusb-1.0-0-dev \
+            libudev-dev \
+            p7zip-full
 
-    steps:
-    - uses: actions/checkout@v7
+      - name: Build release package
+        run: |
+          set -euo pipefail
 
-    - name: Install hidapi
-      run: |
-        brew update
-        brew install hidapi
+          make clean
+          make release
 
-    - name: Compile SonixFlasherC 
-      run: |
-        make clean package
+          7z a sonixflasher-linux-x86_64.zip sonixflasher
 
-    - name: Find artifact files
-      id: find-files
-      run: |
-        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
-        files=$(cat artifact_files.txt)
-        echo "FILES=$files" >> $GITHUB_ENV
+          7z l sonixflasher-linux-x86_64.zip
 
-    - uses: actions/upload-artifact@v7
-      with:
-        name: SonixFlasherC-macOS
-        path: ${{ env.FILES }}
-        
-  build-windows:
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-linux
+          path: sonixflasher-linux-x86_64.zip
+          if-no-files-found: error
+
+  release-windows:
+    name: Release Windows
+    if: github.event_name == 'release'
     runs-on: windows-latest
+
     defaults:
       run:
         shell: msys2 {0}
 
     steps:
-    - uses: actions/checkout@v7
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: make p7zip mingw-w64-x86_64-cc mingw-w64-x86_64-pkg-config mingw-w64-x86_64-hidapi
-    
-    - name: Compile SonixFlasherC 
-      run: |
-        make clean sonixflasher package
-   
-    - name: Find artifact files
-      id: find-files
-      run: |
-        find . -type f -name "sonixflasher-*.zip" -print > artifact_files.txt
-        files=$(cat artifact_files.txt)
-        echo "FILES=$files" >> $GITHUB_ENV
+      - uses: actions/checkout@v6
 
-    - uses: actions/upload-artifact@v7
-      with:
-        name: SonixFlasherC-Windows
-        path: ${{ env.FILES }}
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            make
+            p7zip
+            mingw-w64-ucrt-x86_64-cc
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-libusb
 
-  publish_release:
-    name: Publish (Release)
-    runs-on: ubuntu-latest
+      - name: Build release package
+        run: |
+          set -euo pipefail
 
-    needs: [build-linux, build-mac, build-windows]
+          make clean
+          make release
 
-    if: github.event.release.tag_name
+          dll="$(pkg-config --variable=prefix libusb-1.0)/bin/libusb-1.0.dll"
+
+          test -f "$dll" || {
+            echo "error: libusb DLL not found: $dll" >&2
+            exit 1
+          }
+
+          cp "$dll" .
+
+          test -f sonixflasher.exe
+          test -f libusb-1.0.dll
+
+          echo "Bundling:"
+          ls -lh sonixflasher.exe libusb-1.0.dll
+
+          7z a sonixflasher-windows-x86_64.zip \
+            sonixflasher.exe \
+            libusb-1.0.dll
+
+          7z l sonixflasher-windows-x86_64.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-windows
+          path: sonixflasher-windows-x86_64.zip
+          if-no-files-found: error
+
+  release-macos:
+    name: Release macOS (${{ matrix.arch }})
+    if: github.event_name == 'release'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: macos-26-intel
+            arch: x86_64
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v6
 
-    - uses: softprops/action-gh-release@v3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        name: ${{ github.event.release.name }}
-        files: |
-          ${{ github.workspace }}/*/*
-        fail_on_unmatched_files: true
+      - name: Install deps
+        run: brew install libusb
+
+      - name: Build release package
+        run: |
+          set -euo pipefail
+
+          make clean
+          make release
+
+          test -f sonixflasher
+
+          zip "sonixflasher-macos-${{ matrix.arch }}.zip" sonixflasher
+
+          echo "ZIP contents:"
+          unzip -l "sonixflasher-macos-${{ matrix.arch }}.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-macos-${{ matrix.arch }}
+          path: sonixflasher-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  merge-macos-universal:
+    name: Merge macOS universal binary
+    if: github.event_name == 'release'
+    needs: release-macos
+    runs-on: macos-latest
+
+    steps:
+      - name: Download arm64 package
+        uses: actions/download-artifact@v7
+        with:
+          name: release-macos-arm64
+          path: arm64
+
+      - name: Download x86_64 package
+        uses: actions/download-artifact@v7
+        with:
+          name: release-macos-x86_64
+          path: x86_64
+
+      - name: Extract architecture binaries
+        run: |
+          set -euo pipefail
+
+          unzip -o arm64/sonixflasher-macos-arm64.zip -d arm64/extracted
+          unzip -o x86_64/sonixflasher-macos-x86_64.zip -d x86_64/extracted
+
+          chmod +x arm64/extracted/sonixflasher
+          chmod +x x86_64/extracted/sonixflasher
+
+      - name: Create universal package
+        run: |
+          set -euo pipefail
+
+          lipo \
+            -create \
+            arm64/extracted/sonixflasher \
+            x86_64/extracted/sonixflasher \
+            -output sonixflasher
+
+          lipo -info sonixflasher
+
+          zip sonixflasher-macos-universal.zip sonixflasher
+
+          echo "Universal ZIP contents:"
+          unzip -l sonixflasher-macos-universal.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-macos-universal
+          path: sonixflasher-macos-universal.zip
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish release artifacts
+    if: github.event_name == 'release'
+
+    needs:
+      - release-linux
+      - release-windows
+      - merge-macos-universal
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Verify release packages
+        run: |
+          set -euo pipefail
+
+          echo "Downloaded artifacts:"
+          find artifacts -maxdepth 1 -type f -print
+
+          test -f artifacts/sonixflasher-linux-x86_64.zip
+          test -f artifacts/sonixflasher-windows-x86_64.zip
+          test -f artifacts/sonixflasher-macos-universal.zip
+
+      - name: Publish release packages
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            artifacts/sonixflasher-linux-x86_64.zip
+            artifacts/sonixflasher-windows-x86_64.zip
+            artifacts/sonixflasher-macos-universal.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

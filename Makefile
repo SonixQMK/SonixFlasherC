@@ -14,80 +14,115 @@ else ifeq ($(OS),Windows_NT)
 	OS := windows
 endif
 
-# deal with stupid Windows not having 'cc'
 ifeq (default,$(origin CC))
   CC = gcc
 endif
 
-# Select USB backend: libusb (default) or hidapi
 BACKEND ?= libusb
+STATIC ?= 0
+PKG_CONFIG ?= pkg-config
 
-#############  Mac
+ifeq ($(BACKEND),hidapi)
+ifeq ($(OS),macos)
+PKG_NAME = hidapi
+else ifeq ($(OS),linux)
+PKG_NAME = hidapi-libusb
+else ifeq ($(OS),windows)
+PKG_NAME = hidapi
+else
+$(error Unsupported OS for BACKEND=hidapi)
+endif
+else ifeq ($(BACKEND),libusb)
+PKG_NAME = libusb-1.0
+else
+$(error Unsupported BACKEND='$(BACKEND)')
+endif
+
+define check_pkg_config
+	@$(PKG_CONFIG) --exists $(PKG_NAME) || \
+	  (echo "error: pkg-config package '$(PKG_NAME)' was not found" >&2; \
+	   echo "       install the development package and try again" >&2; \
+	   exit 1)
+endef
+
 ifeq "$(OS)" "macos"
-
 ifeq "$(BACKEND)" "hidapi"
-CFLAGS+=`pkg-config hidapi --cflags`
-LIBS=-lhidapi -framework IOKit -framework CoreFoundation -framework AppKit
-SRCS_BACKEND=src/usb_device_hidapi.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
+SRCS_BACKEND = src/usb_device_hidapi.c
 else ifeq "$(BACKEND)" "libusb"
-CFLAGS+=`pkg-config libusb-1.0 --cflags`
-LIBS=`pkg-config libusb-1.0 --libs` -framework IOKit -framework CoreFoundation -framework AppKit
-SRCS_BACKEND=src/usb_device_libusb.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+ifeq "$(STATIC)" "1"
+PKG_LIBS := $(shell $(PKG_CONFIG) --static --libs $(PKG_NAME))
+else
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
 endif
+SRCS_BACKEND = src/usb_device_libusb.c
+endif
+PKG_LIBS += -framework IOKit -framework CoreFoundation -framework AppKit
 EXE=
-
 endif
 
-############# Windows
 ifeq "$(OS)" "windows"
-
 ifeq "$(BACKEND)" "hidapi"
-CFLAGS+=`pkg-config hidapi --cflags`
-LIBS+= -lhidapi -lsetupapi -Wl,--enable-auto-import
-SRCS_BACKEND=src/usb_device_hidapi.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
+SRCS_BACKEND = src/usb_device_hidapi.c
 else ifeq "$(BACKEND)" "libusb"
-CFLAGS+=`pkg-config libusb-1.0 --cflags`
-LIBS+=`pkg-config libusb-1.0 --libs` -Wl,--enable-auto-import
-SRCS_BACKEND=src/usb_device_libusb.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+ifeq "$(STATIC)" "1"
+PKG_LIBS := $(shell $(PKG_CONFIG) --static --libs $(PKG_NAME))
+else
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
 endif
+SRCS_BACKEND = src/usb_device_libusb.c
+endif
+PKG_LIBS += -lsetupapi -lwinmm -lole32 -static-libgcc
 EXE=.exe
-
 endif
 
-############ Linux (hidraw)
 ifeq "$(OS)" "linux"
-
 ifeq "$(BACKEND)" "hidapi"
-LIBS = `pkg-config libudev --libs`
-CFLAGS+=`pkg-config hidapi-libusb --cflags`
-LIBS+=`pkg-config hidapi-libusb --libs`
-SRCS_BACKEND=src/usb_device_hidapi.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
+SRCS_BACKEND = src/usb_device_hidapi.c
 else ifeq "$(BACKEND)" "libusb"
-CFLAGS+=`pkg-config libusb-1.0 --cflags`
-LIBS+=`pkg-config libusb-1.0 --libs`
-SRCS_BACKEND=src/usb_device_libusb.c
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_NAME))
+ifeq "$(STATIC)" "1"
+PKG_LIBS := $(shell $(PKG_CONFIG) --static --libs $(PKG_NAME))
+else
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs $(PKG_NAME))
+endif
+SRCS_BACKEND = src/usb_device_libusb.c
 endif
 EXE=
-
 endif
-
-
-############# common
 
 SRCS := $(filter-out src/usb_device_hidapi.c src/usb_device_libusb.c,$(wildcard src/*.c)) $(SRCS_BACKEND)
 OBJS := $(SRCS:.c=.o)
 
-CFLAGS += -Wall -Iinclude
+CFLAGS += -Wall -Iinclude $(PKG_CFLAGS)
+LIBS += $(PKG_LIBS)
+
 CLANG ?= clang
 
 all: sonixflasher
-	@echo "Built with BACKEND=$(BACKEND)"
+	@echo "Built with BACKEND=$(BACKEND) STATIC=$(STATIC)"
 
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 sonixflasher: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@$(EXE) $(LIBS)
+	$(call check_pkg_config)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@$(EXE) $(LIBS)
+ifeq "$(STATIC)" "1"
+	strip $@$(EXE)
+endif
+
+.PHONY: release
+release:
+	$(MAKE) clean
+	$(MAKE) STATIC=1 BACKEND=libusb all
 
 clean:
 	rm -f $(OBJS)
@@ -96,8 +131,6 @@ clean:
 package: sonixflasher$(EXE)
 	@echo "Packaging up sonixflasher for '$(OS)-$(ARCH)'"
 	7z a sonixflasher-$(OS)-$(ARCH).zip sonixflasher$(EXE)
-
-############# lint
 
 WARNINGS = \
 	-Wall \
