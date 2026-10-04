@@ -12,6 +12,8 @@
 #define ROM_SIZE_SN32F240C 128
 #define ROM_SIZE_SN32F280 128
 #define ROM_SIZE_SN32F290 256
+#define ROM_SIZE_SN34F280 504
+#define ROM_SIZE_SN32F240D 64
 
 /* ROM Pages */
 #define ROM_PAGES_SN32F220 16
@@ -22,6 +24,8 @@
 #define ROM_PAGES_SN32F260 480
 #define ROM_PAGES_SN32F280 128
 #define ROM_PAGES_SN32F290 256
+#define ROM_PAGES_SN34F280 1008
+#define ROM_PAGES_SN32F240D 128
 
 /* Chip Family IDs */
 #define CHIP_SN32F240 1
@@ -30,6 +34,8 @@
 #define CHIP_SN32F280 4
 #define CHIP_SN32F290 5
 #define CHIP_SN32F240C 6
+#define CHIP_SN34F280 8
+#define CHIP_SN32F240D 9
 
 /* Code Security Levels */
 #define CS_LEVEL_0_VAL1 0x0000
@@ -47,6 +53,8 @@
 #define BLANK_CHECKSUM_SN32F280 0x0000
 #define BLANK_CHECKSUM_SN32F290 0x0000
 #define BLANK_CHECKSUM_SN32F240C 0x0000
+#define BLANK_CHECKSUM_SN34F280 0x0000
+#define BLANK_CHECKSUM_SN32F240D 0x8000
 
 bool chip_identify(device_t *dev, const uint8_t *response);
 const char *chip_display_name(const device_t *dev);

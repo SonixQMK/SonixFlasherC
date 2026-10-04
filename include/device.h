@@ -16,6 +16,8 @@
 #define PID_SN32F26X 0x7010
 #define PID_SN32F28X 0x7120
 #define PID_SN32F29X 0x7140
+#define PID_SN34F28X 0x7210
+#define PID_SN32F24XD 0x7220
 
 bool device_open(device_t *dev, uint16_t vid, uint16_t pid);
 void device_close(device_t *dev);
