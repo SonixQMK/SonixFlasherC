@@ -13,22 +13,22 @@ typedef struct {
 } chip_profile_t;
 
 static const chip_profile_t profiles[] = {
-    {CHIP_F240, 1, ROM_SIZE_F220, ROM_PAGES_F220, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F220},
-    {CHIP_F240, 2, ROM_SIZE_F230, ROM_PAGES_F230, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F230},
-    {CHIP_F240, 3, ROM_SIZE_F240, ROM_PAGES_F240, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F240},
-    {CHIP_F260, 0, ROM_SIZE_F260, ROM_PAGES_F260, CS_LEVEL_0_VAL1,
-     BLANK_CHECKSUM_F260},
-    {CHIP_F240B, 0, ROM_SIZE_F240B, ROM_PAGES_F240B, CS_LEVEL_0_VAL1,
-     BLANK_CHECKSUM_F240B},
-    {CHIP_F280, 0, ROM_SIZE_F280, ROM_PAGES_F280, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F280},
-    {CHIP_F290, 0, ROM_SIZE_F290, ROM_PAGES_F290, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F290},
-    {CHIP_F240C, 0, ROM_SIZE_F240C, ROM_PAGES_F240C, CS_LEVEL_0_VAL2,
-     BLANK_CHECKSUM_F240C},
+    {CHIP_SN32F240, 1, ROM_SIZE_SN32F220, ROM_PAGES_SN32F220, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F220},
+    {CHIP_SN32F240, 2, ROM_SIZE_SN32F230, ROM_PAGES_SN32F230, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F230},
+    {CHIP_SN32F240, 3, ROM_SIZE_SN32F240, ROM_PAGES_SN32F240, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F240},
+    {CHIP_SN32F260, 0, ROM_SIZE_SN32F260, ROM_PAGES_SN32F260, CS_LEVEL_0_VAL1,
+     BLANK_CHECKSUM_SN32F260},
+    {CHIP_SN32F240B, 0, ROM_SIZE_SN32F240B, ROM_PAGES_SN32F240B, CS_LEVEL_0_VAL1,
+     BLANK_CHECKSUM_SN32F240B},
+    {CHIP_SN32F280, 0, ROM_SIZE_SN32F280, ROM_PAGES_SN32F280, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F280},
+    {CHIP_SN32F290, 0, ROM_SIZE_SN32F290, ROM_PAGES_SN32F290, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F290},
+    {CHIP_SN32F240C, 0, ROM_SIZE_SN32F240C, ROM_PAGES_SN32F240C, CS_LEVEL_0_VAL2,
+     BLANK_CHECKSUM_SN32F240C},
 };
 
 static const size_t num_profiles = sizeof(profiles) / sizeof(profiles[0]);
@@ -67,7 +67,7 @@ bool chip_identify(device_t *dev, const uint8_t *response) {
     if ((uint8_t)profile->family != chip_version)
       continue;
 
-    if (profile->family == CHIP_F240 && profile->variant != chip_revision) {
+    if (profile->family == CHIP_SN32F240 && profile->variant != chip_revision) {
       continue;
     }
 
@@ -85,17 +85,17 @@ bool chip_identify(device_t *dev, const uint8_t *response) {
 
 const char *chip_name(int family) {
   switch (family) {
-  case CHIP_F240:
+  case CHIP_SN32F240:
     return "SN32F24X";
-  case CHIP_F260:
+  case CHIP_SN32F260:
     return "SN32F26X";
-  case CHIP_F240B:
+  case CHIP_SN32F240B:
     return "SN32F24XB";
-  case CHIP_F280:
+  case CHIP_SN32F280:
     return "SN32F28X";
-  case CHIP_F290:
+  case CHIP_SN32F290:
     return "SN32F29X";
-  case CHIP_F240C:
+  case CHIP_SN32F240C:
     return "SN32F24XC";
   default:
     return "Unknown";
@@ -106,7 +106,7 @@ const char *chip_display_name(const device_t *dev) {
   if (!dev)
     return "Unknown";
 
-  if (dev->chip_family == CHIP_F240) {
+  if (dev->chip_family == CHIP_SN32F240) {
     switch (dev->chip_variant) {
     case 1:
       return "SN32F22X";

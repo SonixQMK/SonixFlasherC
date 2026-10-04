@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
   sleep(IO_DELAY_SEC);
 
   /* Erase flash */
-  if (dev.chip_family != CHIP_F240B && dev.chip_family != CHIP_F260) {
+  if (dev.chip_family != CHIP_SN32F240B && dev.chip_family != CHIP_SN32F260) {
     if (!flash_erase(&dev)) {
       cleanup_and_exit(&dev, abs_path, 1);
     }

@@ -55,14 +55,14 @@ static bool parse_reboot_type(const char *str, const char **type) {
 }
 
 const known_device_t KNOWN_DEVICES[] = {
-    {"SONIX SN32F22X", VID_SONIX, PID_SN22X},
-    {"SONIX SN32F23X", VID_SONIX, PID_SN23X},
-    {"SONIX SN32F24X", VID_SONIX, PID_SN24X},
-    {"SONIX SN32F24XB", VID_SONIX, PID_SN24XB},
-    {"SONIX SN32F24XC", VID_SONIX, PID_SN24XC},
-    {"SONIX SN32F26X", VID_SONIX, PID_SN26X},
-    {"SONIX SN32F28X", VID_SONIX, PID_SN28X},
-    {"SONIX SN32F29X", VID_SONIX, PID_SN29X},
+    {"SONIX SN32F22X", VID_SONIX, PID_SN32F22X},
+    {"SONIX SN32F23X", VID_SONIX, PID_SN32F23X},
+    {"SONIX SN32F24X", VID_SONIX, PID_SN32F24X},
+    {"SONIX SN32F24XB", VID_SONIX, PID_SN32F24XB},
+    {"SONIX SN32F24XC", VID_SONIX, PID_SN32F24XC},
+    {"SONIX SN32F26X", VID_SONIX, PID_SN32F26X},
+    {"SONIX SN32F28X", VID_SONIX, PID_SN32F28X},
+    {"SONIX SN32F29X", VID_SONIX, PID_SN32F29X},
 };
 
 const size_t KNOWN_DEVICES_COUNT =
@@ -131,7 +131,7 @@ void cli_print_usage(const char *prog_name) {
   printf("  -j, --jumploader         Flash jumploader instead of firmware\n");
   printf("  -r, --reboot TYPE        Request reboot before flashing "
          "(sonix/evision/hfd default: sonix)\n");
-  printf("  -k, --no-offset-check    Skip offset validation for F26X\n");
+  printf("  -k, --no-offset-check    Skip offset validation for SN32F26X\n");
   printf("  -u, --user-mode          Reboot a device stuck in bootloader "
          "back to user mode (no file needed)\n");
   printf("  -i, --info               Print device/chip info and exit "
