@@ -8,14 +8,16 @@
 #define VID_EVISION 0x320F
 #define VID_APPLE 0x05ac
 
-#define PID_SN22X 0x7900
-#define PID_SN23X 0x7900
-#define PID_SN24X 0x7900
-#define PID_SN24XB 0x7040
-#define PID_SN24XC 0x7160
-#define PID_SN26X 0x7010
-#define PID_SN28X 0x7120
-#define PID_SN29X 0x7140
+#define PID_SN32F22X 0x7900
+#define PID_SN32F23X 0x7900
+#define PID_SN32F24X 0x7900
+#define PID_SN32F24XB 0x7040
+#define PID_SN32F24XC 0x7160
+#define PID_SN32F26X 0x7010
+#define PID_SN32F28X 0x7120
+#define PID_SN32F29X 0x7140
+#define PID_SN34F28X 0x7210
+#define PID_SN32F24XD 0x7220
 
 bool device_open(device_t *dev, uint16_t vid, uint16_t pid);
 void device_close(device_t *dev);
