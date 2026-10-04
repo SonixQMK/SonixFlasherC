@@ -1,6 +1,6 @@
 # Sonix Flasher C
 
-A CLI-based flasher and diagnostics tool for Sonix SN32F2xx USB bootloader devices.
+A CLI-based flasher and diagnostics tool for Sonix SN32F2xx and SN34F2xx USB bootloader devices.
 
 ## Description
 
@@ -95,6 +95,8 @@ Firmware and jumploader files must be provided as `.bin` files.
 | SONIX SN32F26x  | 0x0C45 | 0x7010 |
 | SONIX SN32F28x  | 0x0C45 | 0x7120 |
 | SONIX SN32F29x  | 0x0C45 | 0x7140 |
+| SONIX SN34F28X  | 0x0c45 | 0x7210 |
+| SONIX SN32F24XD | 0x0c45 | 0x7220 |
 
 Notice that some devices support flashing while running their OEM firmware. In those cases, use `--reboot` to expose the ISP mode.
 

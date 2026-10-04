@@ -85,7 +85,8 @@ bool flash_program(device_t *dev, const flash_config_t *config) {
 
   /* Special case: SN32F26X without offset is dangerous */
   uint32_t offset = config->offset;
-  if (dev->chip_family == CHIP_SN32F260 && !config->is_jumploader && offset == 0) {
+  if (dev->chip_family == CHIP_SN32F260 && !config->is_jumploader &&
+      offset == 0) {
     log_warn("SN32F26X flashing without offset - potentially dangerous");
     if (!config->skip_offset_check) {
       log_info("Using safe default offset: 0x%04x", DEFAULT_OFFSET);
