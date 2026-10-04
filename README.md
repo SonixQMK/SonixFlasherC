@@ -74,7 +74,7 @@ Firmware and jumploader files must be provided as `.bin` files.
 - `-o, --offset ADDR`        Flash offset (default: `0`)
 - `-j, --jumploader`         Flash a jumploader `.bin` image instead of a normal firmware image
 - `-r, --reboot TYPE`        Request bootloader reboot before flashing (`sonix`, `evision`, or `hfd`)
-- `-k, --no-offset-check`    Skip offset validation for F26X flows
+- `-k, --no-offset-check`    Skip offset validation for SN32F26X flows
 - `-u, --user-mode`          Reboot a device back to user mode from bootloader state (no file required)
 - `-i, --info`               Print chip/device info and flash checksum (no file required)
 - `-d, --debug`              Enable debug output
