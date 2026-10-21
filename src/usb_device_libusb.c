@@ -182,12 +182,20 @@ usb_device_t *usb_device_open(uint16_t vid, uint16_t pid) {
     result = libusb_detach_kernel_driver(dev->handle, HID_INTERFACE_NUMBER);
 
     if (result < 0) {
+#ifdef __APPLE__
+      if (result != LIBUSB_ERROR_ACCESS) {
+        set_error(dev, "failed to detach kernel driver", result);
+        usb_device_close(dev);
+        return NULL;
+      }
+#else
       set_error(dev, "failed to detach kernel driver", result);
       usb_device_close(dev);
       return NULL;
+#endif
+    } else {
+      dev->kernel_driver_detached = true;
     }
-
-    dev->kernel_driver_detached = true;
   } else if (result < 0 && result != LIBUSB_ERROR_NOT_SUPPORTED) {
     set_error(dev, "failed to check kernel driver", result);
     usb_device_close(dev);
@@ -196,12 +204,21 @@ usb_device_t *usb_device_open(uint16_t vid, uint16_t pid) {
 
   result = libusb_claim_interface(dev->handle, HID_INTERFACE_NUMBER);
   if (result < 0) {
+#ifdef __APPLE__
+    if (result != LIBUSB_ERROR_ACCESS && result != LIBUSB_ERROR_BUSY) {
+      set_error(dev, "failed to claim HID interface", result);
+      usb_device_close(dev);
+      return NULL;
+    }
+#else
     set_error(dev, "failed to claim HID interface", result);
     usb_device_close(dev);
     return NULL;
+#endif
+  } else {
+    dev->interface_claimed = true;
   }
 
-  dev->interface_claimed = true;
   return dev;
 }
 
