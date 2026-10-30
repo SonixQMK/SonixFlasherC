@@ -1,7 +1,10 @@
 #ifndef SONIXFLASHER_LOG_H
 #define SONIXFLASHER_LOG_H
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__MINGW32__) && defined(__GNUC__)
+#define PRINTF_LIKE(fmt_idx, args_idx)                                         \
+    __attribute__((format(gnu_printf, fmt_idx, args_idx)))
+#elif defined(__GNUC__) || defined(__clang__)
 #define PRINTF_LIKE(fmt_idx, args_idx)                                         \
   __attribute__((format(printf, fmt_idx, args_idx)))
 #else
