@@ -144,6 +144,13 @@ int main(int argc, char *argv[]) {
 
   log_info("Device initialized: %s", chip_display_name(&dev));
 
+  if (prepared_size > dev.max_firmware_size) {
+      log_error("Firmware payload too large for %s: %ld bytes > %u bytes",
+                chip_display_name(&dev), prepared_size,
+                dev.max_firmware_size);
+      cleanup_and_exit(&dev, abs_path, 1);
+  }
+
   for (int i = FLASH_CONFIRM_DELAY_SEC; i > 0; i--) {
     log_raw("Starting flash in %d seconds...", i);
     sleep(IO_DELAY_SEC);
