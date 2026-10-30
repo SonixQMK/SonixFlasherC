@@ -85,18 +85,18 @@ Firmware and jumploader files must be provided as `.bin` files.
 
 #### ISP Bootloader Mode Defaults:
 
-|      Device     |   VID  |   PID  |
-|-----------------|--------|--------|
-| SONIX SN32F22x  | 0x0C45 | 0x7900 |
-| SONIX SN32F23x  | 0x0C45 | 0x7900 |
-| SONIX SN32F24x  | 0x0C45 | 0x7900 |
-| SONIX SN32F24xB | 0x0C45 | 0x7040 |
-| SONIX SN32F24xC | 0x0C45 | 0x7160 |
-| SONIX SN32F26x  | 0x0C45 | 0x7010 |
-| SONIX SN32F28x  | 0x0C45 | 0x7120 |
-| SONIX SN32F29x  | 0x0C45 | 0x7140 |
-| SONIX SN34F28X  | 0x0c45 | 0x7210 |
-| SONIX SN32F24XD | 0x0c45 | 0x7220 |
+|      Device     | VID   | PID   |
+|-----------------|-------|-------|
+| SONIX SN32F22X  | 0c45  | 7900  |
+| SONIX SN32F23X  | 0c45  | 7900  |
+| SONIX SN32F24X  | 0c45  | 7900  |
+| SONIX SN32F24XB | 0c45  | 7040  |
+| SONIX SN32F24XC | 0c45  | 7160  |
+| SONIX SN32F26X  | 0c45  | 7010  |
+| SONIX SN32F28X  | 0c45  | 7120  |
+| SONIX SN32F29X  | 0c45  | 7140  |
+| SONIX SN34F28X  | 0c45  | 7210  |
+| SONIX SN32F24XD | 0c45  | 7220  |
 
 Notice that some devices support flashing while running their OEM firmware. In those cases, use `--reboot` to expose the ISP mode.
 
